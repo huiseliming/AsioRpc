@@ -1,0 +1,12 @@
+{
+    "name": "vcpkg",
+    "description": "",
+    "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
+    "dependencies": [
+        "boost-asio",
+        "boost-describe",
+        "boost-dll",
+        "boost-interprocess",
+        "boost-json"
+    ]
+}
