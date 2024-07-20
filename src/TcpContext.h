@@ -38,9 +38,15 @@ namespace Private {
     class FTcpSocket : public std::enable_shared_from_this<FTcpSocket>
     {
     public:
-        FTcpSocket(ITcpContext& tcpContext, asio::ip::tcp::endpoint endpoint = asio::ip::tcp::endpoint())
+        FTcpSocket(ITcpContext& tcpContext)
             : TcpContext(tcpContext)
             , Strand(asio::make_strand(tcpContext.IoContextRef()))
+            , Socket(Strand)
+        {}
+
+        FTcpSocket(ITcpContext& tcpContext, asio::strand<asio::io_context::executor_type> strand, asio::ip::tcp::endpoint endpoint)
+            : TcpContext(tcpContext)
+            , Strand(strand)
             , Socket(Strand)
             , Endpoint(endpoint)
         {}

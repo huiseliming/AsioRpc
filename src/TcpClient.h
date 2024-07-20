@@ -24,7 +24,7 @@ namespace Private {
         asio::awaitable<std::shared_ptr<FTcpSocket>> AsyncStart(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
             co_await AsyncStop(SocketWeakPtr);
-            std::shared_ptr<FTcpSocket> tcpSocket = std::make_shared<FTcpSocket>(*this, asio::ip::tcp::endpoint(address, port));
+            std::shared_ptr<FTcpSocket> tcpSocket = std::make_shared<FTcpSocket>(*this, Strand, asio::ip::tcp::endpoint(address, port));
             SocketWeakPtr = tcpSocket;
             co_return co_await AsyncConnect(std::move(tcpSocket));
         }
