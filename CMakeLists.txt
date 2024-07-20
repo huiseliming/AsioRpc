@@ -9,7 +9,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON" FORCE)
 
-add_executable(Example src/Main.cpp AsioRpc.h)
+add_executable(Example src/Main.cpp 
+src/RpcClient.h
+src/RpcServer.h
+src/TcpClient.h
+src/Connection.h
+src/TcpContext.h
+src/TcpServer.h
+AsioRpc.h)
 
 find_package(boost_describe CONFIG REQUIRED)
 find_package(boost_asio CONFIG REQUIRED)
