@@ -56,6 +56,7 @@ namespace Cpp {
             , Strand(asio::make_strand(tcpContext.GetIoContextRef()))
             , Socket(Strand)
             , Endpoint(endpoint)
+            , bIsConnected(false)
         {}
         ~FTcpConnection() {
             TcpContext.ReleaseConnection(this);
@@ -70,6 +71,7 @@ namespace Cpp {
         asio::ip::tcp::endpoint& GetEndpointRef() { return Endpoint; }
         FConnectionId GetId() { return std::make_pair(Endpoint.address().to_v4().to_uint(), Endpoint.port()); }
         std::queue<std::vector<uint8_t>>& GetWriteQueueRef() { return WriteQueue; }
+        bool IsConnected() { return bIsConnected; }
 
     protected:
         asio::awaitable<void> AsyncClose(std::shared_ptr<FTcpConnection> self)
@@ -83,7 +85,10 @@ namespace Cpp {
         asio::strand<asio::io_context::executor_type> Strand;
         asio::ip::tcp::socket Socket;
         asio::ip::tcp::endpoint Endpoint;
+        bool bIsConnected;
         std::queue<std::vector<uint8_t>> WriteQueue;
+
+        friend class FTcpContext;
     };
 
     class FTcpContext: public ITcpContext, public std::enable_shared_from_this<FTcpContext> {
@@ -170,6 +175,11 @@ namespace Cpp {
             char buffer[4 * 1024];
             auto& endpoint = connection->GetEndpointRef();
             std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: connected" << std::endl;
+            connection->bIsConnected = true;
+            if (!connection->WriteQueue.empty())
+            {
+                asio::co_spawn(strand, AsyncWrite(connection), asio::detached);
+            }
             try
             {
                 for (;;)
@@ -183,8 +193,31 @@ namespace Cpp {
                 socket.close();
                 std::cout << "exception: " << e.what() << std::endl;
             }
+            connection->bIsConnected = false;
             std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: disconnected" << std::endl;
             BOOST_ASSERT(strand.running_in_this_thread());
+        }
+
+        asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpConnection> connection)
+        {
+            asio::strand<asio::io_context::executor_type>& strand = connection->GetStrandRef();
+            asio::ip::tcp::socket& socket = connection->GetSocketRef();
+            std::queue<std::vector<uint8_t>>& writeQueue = connection->GetWriteQueueRef();
+            try
+            {
+                BOOST_ASSERT(strand.running_in_this_thread());
+                while (!writeQueue.empty())
+                {
+                    auto bytesTransferred = co_await socket.async_write_some(asio::buffer(writeQueue.front()), asio::use_awaitable);
+                    writeQueue.pop();
+                }
+                BOOST_ASSERT(strand.running_in_this_thread());
+            }
+            catch (const std::exception& e)
+            {
+                socket.close();
+                std::cout << "exception: " << e.what() << std::endl;
+            }
         }
 
         virtual asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpConnection> connection, std::vector<uint8_t> data) override
@@ -198,6 +231,8 @@ namespace Cpp {
                 bool bIsWriteQueueEmpty = writeQueue.empty();
                 writeQueue.push(std::move(data));
                 if (!bIsWriteQueueEmpty)
+                    co_return;
+                if (!connection->IsConnected())
                     co_return;
                 while (!writeQueue.empty())
                 {
