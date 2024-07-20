@@ -341,8 +341,12 @@ protected:
 //};
 // 
 
-asio::awaitable<void> test(std::shared_ptr<FRpcService> rpcService) {
-    auto tcp = co_await rpcService->AsyncConnect(rpcService, "127.0.0.1", 7777);
+#include "../AsioRpc.h"
+
+using namespace Cpp;
+
+asio::awaitable<void> test(std::shared_ptr<FTcpContext> rpcService) {
+    auto tcp = co_await rpcService->AsyncConnect(rpcService, "127.0.0.1", 27777);
     if (tcp)
     {
         std::cout << "tpc A";
@@ -358,10 +362,8 @@ asio::awaitable<void> test(std::shared_ptr<FRpcService> rpcService) {
     }
 }
 
-#include "../AsioRpc.h"
 
 int main(int argc, char* argv[]) {
-    using namespace Cpp;
 
     asio::io_context ioc;
 
@@ -370,9 +372,9 @@ int main(int argc, char* argv[]) {
         ioc.run();
     });
     {
-        FTcpContext tcpContext(ioc);
-        tcpContext.Listen();
-        //asio::co_spawn(ioc, test(rpcServer), asio::detached);
+        std::shared_ptr<FTcpContext> tcpContext = std::make_shared<FTcpContext>(ioc);
+        tcpContext->Listen();
+        asio::co_spawn(ioc, test(tcpContext), asio::detached);
         std::this_thread::sleep_for(std::chrono::seconds(64));
     }
     work.reset();
