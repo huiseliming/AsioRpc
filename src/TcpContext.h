@@ -21,7 +21,6 @@ namespace Private {
     public:
         ITcpContext(asio::io_context& ioContext)
             : IoContext(ioContext)
-            , Strand(asio::make_strand(ioContext))
         {}
 
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpSocket> tcpSocket) = 0;
@@ -33,7 +32,6 @@ namespace Private {
 
     protected:
         asio::io_context& IoContext;
-        asio::strand<asio::io_context::executor_type> Strand;
 
     };
 

@@ -8,6 +8,7 @@ namespace Private {
     public:
         FTcpServer(asio::io_context& ioContext)
             : ITcpContext(ioContext)
+            , Strand(asio::make_strand(ioContext))
         {}
 
         ~FTcpServer() {
@@ -91,6 +92,12 @@ namespace Private {
                 for (;;)
                 {
                     auto bytesTransferred = co_await socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
+                    printf("server: ");
+                    for (size_t i = 0; i < bytesTransferred; i++)
+                    {
+                        printf("%c", buffer[i]);
+                    }
+                    printf("\n");
                     tcpSocket->Write(std::vector<uint8_t>(buffer, buffer + bytesTransferred));
                 }
             }
@@ -157,6 +164,7 @@ namespace Private {
 
     protected:
         std::weak_ptr<asio::ip::tcp::acceptor> Acceptor;
+        asio::strand<asio::io_context::executor_type> Strand;
         std::map<FSocketId, std::weak_ptr<FTcpSocket>> SocketMap;
 
     };
