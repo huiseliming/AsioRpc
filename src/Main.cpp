@@ -346,7 +346,7 @@ protected:
 using namespace Cpp;
 
 asio::awaitable<void> test(std::shared_ptr<FTcpContext> rpcService) {
-    auto tcp = co_await rpcService->AsyncConnect(rpcService, "127.0.0.1", 27777);
+    auto tcp = co_await rpcService->AsyncConnect(rpcService, "127.0.0.1", 7777);
     if (tcp)
     {
         std::cout << "tpc A";

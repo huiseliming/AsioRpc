@@ -168,6 +168,8 @@ namespace Cpp {
             asio::ip::tcp::socket& socket = connection->GetSocketRef();
             BOOST_ASSERT(strand.running_in_this_thread());
             char buffer[4 * 1024];
+            auto& endpoint = connection->GetEndpointRef();
+            std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: connected" << std::endl;
             try
             {
                 for (;;)
@@ -181,6 +183,7 @@ namespace Cpp {
                 socket.close();
                 std::cout << "exception: " << e.what() << std::endl;
             }
+            std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: disconnected" << std::endl;
             BOOST_ASSERT(strand.running_in_this_thread());
         }
 
@@ -247,7 +250,6 @@ namespace Cpp {
             {
                 return false;
             }
-            std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: connected" << std::endl;
             return true;
         }
 
@@ -258,7 +260,6 @@ namespace Cpp {
                 auto it = ConnectionMap.find(connectionId);
                 if (it != ConnectionMap.end())
                 {
-                    std::cout << "conn[" << asio::ip::address_v4(connectionId.first).to_string() << ":" << connectionId.second << "]: disconnected" << std::endl;
                     ConnectionMap.erase(it);
                 }
                 co_return;
