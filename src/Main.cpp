@@ -358,20 +358,23 @@ asio::awaitable<void> test(std::shared_ptr<FRpcService> rpcService) {
     }
 }
 
+#include "../AsioRpc.h"
+
 int main(int argc, char* argv[]) {
+    using namespace Cpp;
+
     asio::io_context ioc;
 
     std::unique_ptr<asio::io_context::work> work = std::make_unique<asio::io_context::work>(ioc);
     std::thread t([&] {
         ioc.run();
-
-        });
-
-    auto rpcServer = std::make_shared<FRpcService>(ioc);
-    rpcServer->Listen();
-    asio::co_spawn(ioc, test(rpcServer), asio::detached);
-    std::this_thread::sleep_for(std::chrono::seconds(64));
-    rpcServer->Stop();
+    });
+    {
+        FTcpContext tcpContext(ioc);
+        tcpContext.Listen();
+        //asio::co_spawn(ioc, test(rpcServer), asio::detached);
+        std::this_thread::sleep_for(std::chrono::seconds(64));
+    }
     work.reset();
     t.join();
     return 0;
