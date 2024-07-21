@@ -11,7 +11,10 @@ set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON" FORCE)
 
 add_executable(Example src/Main.cpp 
 src/RpcClient.h
+src/RpcDispatcher.h
+src/RpcConnection.h
 src/RpcServer.h
+src/TcpConnection.h
 src/TcpClient.h
 src/Connection.h
 src/TcpContext.h

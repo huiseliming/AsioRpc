@@ -1,10 +1,10 @@
 #pragma once
-#include "TcpContext.h"
+#include "TcpConnection.h"
 
+namespace Cpp {
 
-namespace Private {
-
-    class FTcpClient : public ITcpContext {
+    class FTcpClient : public ITcpContext
+    {
     public:
 
         FTcpClient(asio::io_context& ioContext)
@@ -16,54 +16,60 @@ namespace Private {
             Stop();
         }
 
-        std::future<std::shared_ptr<FTcpSocket>> Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
-        {
-            return asio::co_spawn(Strand, AsyncStart(address, port), asio::use_future);
+        virtual std::shared_ptr<FTcpConnection> NewConnection(asio::ip::address address, asio::ip::port_type port) {
+            return std::make_shared<FTcpConnection>(this, Strand, asio::ip::tcp::endpoint(address, port));
         }
 
-        asio::awaitable<std::shared_ptr<FTcpSocket>> AsyncStart(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
+        std::future<std::shared_ptr<FTcpConnection>> Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
-            co_await AsyncStop(SocketWeakPtr);
-            std::shared_ptr<FTcpSocket> tcpSocket = std::make_shared<FTcpSocket>(*this, Strand, asio::ip::tcp::endpoint(address, port));
-            SocketWeakPtr = tcpSocket;
-            co_return co_await AsyncConnect(std::move(tcpSocket));
+            return asio::co_spawn(Strand, AsyncConnect(address, port), asio::use_future);
         }
 
         void Stop()
         {
-            asio::co_spawn(Strand, AsyncStop(SocketWeakPtr), asio::use_future).get();
+            asio::co_spawn(Strand, AsyncStop(ConnectionWeakPtr), asio::use_future).get();
         }
 
-        asio::awaitable<void> AsyncStop(std::weak_ptr<FTcpSocket> tcpSocketWeakPtr)
+        asio::awaitable<void> AsyncStop(std::weak_ptr<FTcpConnection> connectionWeakPtr)
         {
-            if (!Strand.running_in_this_thread()) {
-                co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            }
-            if (auto tcpSocket = tcpSocketWeakPtr.lock()) {
-                tcpSocket->Close();
+            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+            if (auto connection = connectionWeakPtr.lock()) {
+                connection->Close();
             }
             asio::steady_timer timer(Strand);
-            while (!tcpSocketWeakPtr.expired()) {
+            while (!connectionWeakPtr.expired()) {
                 timer.expires_after(std::chrono::milliseconds(1));
                 co_await timer.async_wait(asio::use_awaitable);
+                BOOST_ASSERT(Strand.running_in_this_thread());
             }
         }
 
-        asio::awaitable<std::shared_ptr<FTcpSocket>> AsyncConnect(std::shared_ptr<FTcpSocket> tcpSocket, asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
+        asio::awaitable<std::shared_ptr<FTcpConnection>> AsyncConnect(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
             try {
-                auto& socket = tcpSocket->GetSocketRef();
-                auto& strand = tcpSocket->GetStrandRef();
-                auto& endpoint = tcpSocket->GetEndpointRef();
-                asio::deadline_timer deadlineTimer(strand);
-                deadlineTimer.expires_from_now(boost::posix_time::seconds(3));
-                deadlineTimer.async_wait([&](boost::system::error_code errorCode) { if (!errorCode) socket.close(); });
-                co_await socket.async_connect(endpoint, asio::use_awaitable);
-                deadlineTimer.cancel();
-                if (socket.is_open() && AcquireSocket(tcpSocket.get())) 
+                co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                if (!ConnectionWeakPtr.expired())
                 {
-                    tcpSocket->Read();
-                    co_return tcpSocket;
+                    co_return nullptr;
+                }
+                std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
+                ConnectionWeakPtr = connection;
+
+                asio::deadline_timer deadlineTimer(connection->RefStrand());
+                deadlineTimer.expires_from_now(boost::posix_time::seconds(3));
+                deadlineTimer.async_wait([&](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
+                co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
+                deadlineTimer.cancel();
+                if (connection->RefSocket().is_open())
+                {
+                    asio::co_spawn(connection->Strand, [=]() -> asio::awaitable<void> {
+                        BOOST_ASSERT(Strand.running_in_this_thread());
+                        Connection = connection;
+                        co_await connection->AsyncRead(connection);
+                        co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                        Connection.reset();
+                        }, asio::detached);
+                    co_return connection;
                 }
             }
             catch (const std::exception& e) {
@@ -73,22 +79,9 @@ namespace Private {
         }
 
     protected:
-
-        virtual bool AcquireSocket(FTcpSocket* tcpSocket) override
-        {
-            Socket = tcpSocket->shared_from_this();
-            return true;
-        }
-
-        virtual void ReleaseSocket(FTcpSocket* tcpSocket) override
-        {
-            Socket.reset();
-        }
-
-    protected:
         asio::strand<asio::io_context::executor_type> Strand;
-        std::shared_ptr<FTcpSocket> Socket;
-        std::weak_ptr<FTcpSocket> SocketWeakPtr;
+        std::shared_ptr<FTcpConnection> Connection;
+        std::weak_ptr<FTcpConnection> ConnectionWeakPtr;
 
     };
 
