@@ -72,63 +72,6 @@ namespace Private {
             co_return nullptr;
         }
 
-        virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpSocket> tcpSocket) override
-        {
-            asio::strand<asio::io_context::executor_type>& strand = tcpSocket->GetStrandRef();
-            asio::ip::tcp::socket& socket = tcpSocket->GetSocketRef();
-            BOOST_ASSERT(strand.running_in_this_thread());
-            char buffer[4 * 1024];
-            auto& endpoint = tcpSocket->GetEndpointRef();
-            std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: connected" << std::endl;
-            try
-            {
-                for (;;)
-                {
-                    auto bytesTransferred = co_await socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
-                    printf("client: ");
-                    for (size_t i = 0; i < bytesTransferred; i++)
-                    {
-                        printf("%c", buffer[i]);
-                    }
-                    printf("\n");
-                    BOOST_ASSERT(strand.running_in_this_thread());
-                    //tcpSocket->Write(std::vector<uint8_t>(buffer, buffer + bytesTransferred));
-                }
-            }
-            catch (const std::exception& e)
-            {
-                socket.close();
-                std::cout << "exception: " << e.what() << std::endl;
-            }
-            std::cout << "conn[" << endpoint.address().to_string() << ":" << endpoint.port() << "]: disconnected" << std::endl;
-        }
-
-        virtual asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpSocket> tcpSocket, std::vector<uint8_t> data) override
-        {
-            asio::strand<asio::io_context::executor_type>& strand = tcpSocket->GetStrandRef();
-            asio::ip::tcp::socket& socket = tcpSocket->GetSocketRef();
-            std::queue<std::vector<uint8_t>>& writeQueue = tcpSocket->GetWriteQueueRef();
-            try
-            {
-                BOOST_ASSERT(strand.running_in_this_thread());
-                bool bIsWriteQueueEmpty = writeQueue.empty();
-                writeQueue.push(std::move(data));
-                if (!bIsWriteQueueEmpty)
-                    co_return;
-                while (!writeQueue.empty())
-                {
-                    auto bytesTransferred = co_await socket.async_write_some(asio::buffer(writeQueue.front()), asio::use_awaitable);
-                    writeQueue.pop();
-                }
-                BOOST_ASSERT(strand.running_in_this_thread());
-            }
-            catch (const std::exception& e)
-            {
-                socket.close();
-                std::cout << "exception: " << e.what() << std::endl;
-            }
-        }
-
     protected:
 
         virtual bool AcquireSocket(FTcpSocket* tcpSocket) override
