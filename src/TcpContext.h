@@ -23,6 +23,7 @@ namespace Private {
             : IoContext(ioContext)
         {}
 
+        virtual std::shared_ptr<FTcpSocket> NewTcpSocket() = 0;
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpSocket> tcpSocket) = 0;
         virtual asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpSocket> tcpSocket, std::vector<uint8_t> data) = 0;
         virtual bool AcquireSocket(FTcpSocket* tcpSocket) = 0;

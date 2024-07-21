@@ -4,7 +4,7 @@
 
 namespace Private {
 
-    class FTcpServer : public ITcpContext, public std::enable_shared_from_this<FTcpServer> {
+    class FTcpServer : public ITcpContext {
     public:
         FTcpServer(asio::io_context& ioContext)
             : ITcpContext(ioContext)
@@ -52,7 +52,7 @@ namespace Private {
             std::cout << "bbb" << std::endl;
         }
 
-        asio::awaitable<void> AsyncAccept(std::shared_ptr<asio::ip::tcp::acceptor> acceptor) {
+        virtual asio::awaitable<void> AsyncAccept(std::shared_ptr<asio::ip::tcp::acceptor> acceptor) {
             try
             {
                 for (;;)
