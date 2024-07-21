@@ -52,9 +52,9 @@ namespace Cpp{
             }
         }
 
-        template<typename ... Args>
-        BOOST_INLINE_CONSTEXPR void SendRpcRequest(FTcpConnection* connection, std::string func, Args&& ... args) {
-            asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(func), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+        template<typename Resp, typename ... Args>
+        BOOST_INLINE_CONSTEXPR void SendRpcRequest(FTcpConnection* connection, std::string func, Resp&& resp, Args&& ... args) {
+            asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(func), std::forward<Resp>(resp), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
     protected:
         asio::awaitable<void> AsyncSendRpcData(std::shared_ptr<FTcpConnection> connection, json::value rpcData) {
@@ -76,11 +76,15 @@ namespace Cpp{
             return AsyncSendRpcData(std::move(connection), json::array({ id, func, requestValue }));
         }
         
-        template<typename ... Args>
-        asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, std::string func, std::tuple<Args...> args) {
+        template<typename Resp, typename ... Args>
+        asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, std::string func, Resp&& resp, std::tuple<Args...> args) {
             BOOST_ASSERT(Strand.running_in_this_thread());
             int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-            ResponseMap.insert(std::pair(id, [](json::value&) { std::cout << "test resp" << std::endl; }));
+            using RespArgs = boost::callable_traits::args_t<Resp>;
+            if constexpr (std::tuple_size_v<RespArgs>)
+                ResponseMap.insert(std::pair(id, [resp = std::forward<Resp>(resp)](json::value& val) { resp(json::value_to<std::decay_t<std::tuple_element_t<0, RespArgs>>>(val)); }));
+            else 
+                ResponseMap.insert(std::pair(id, [resp = std::forward<Resp>(resp)](json::value& val) { resp(); }));
             co_await AsyncSendRpcData(std::move(connection), json::array({ id, func, json::value_from(args) }));
         }
 

@@ -23,11 +23,11 @@ namespace Cpp {
             RpcDispatcher.RecvRpc(connection, data, size);
         }
 
-        template<typename ... Args>
-        void Call(std::string func, Args&& ... args) {
+        template<typename Resp, typename ... Args>
+        void Call(std::string func, Resp&& resp, Args&& ... args) {
             if (Connection)
             {
-                RpcDispatcher.SendRpcRequest(Connection.get(), func, std::forward<Args>(args)...);
+                RpcDispatcher.SendRpcRequest(Connection.get(), func, std::forward<Resp>(resp), std::forward<Args>(args)...);
             }
         }
 
