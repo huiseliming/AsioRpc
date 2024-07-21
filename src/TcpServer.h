@@ -47,9 +47,7 @@ namespace Private {
                     co_await timer.async_wait(asio::use_awaitable);
                     BOOST_ASSERT(Strand.running_in_this_thread());
                 }
-                std::cout << "sss" << std::endl;
             }, asio::use_future).get();
-            std::cout << "bbb" << std::endl;
         }
 
         virtual asio::awaitable<void> AsyncAccept(std::shared_ptr<asio::ip::tcp::acceptor> acceptor) {

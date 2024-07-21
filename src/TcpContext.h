@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <boost/asio.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/json.hpp>
 
 namespace Private {
 
@@ -17,13 +18,21 @@ namespace Private {
 
     class FTcpSocket;
 
+    template <typename T>
+    inline T EndianCast(const T& val)
+    {
+        if constexpr (std::endian::native == std::endian::little) {
+            return boost::endian::endian_reverse(val);
+        }
+        return val;
+    }
+
     class ITcpContext {
     public:
         ITcpContext(asio::io_context& ioContext)
             : IoContext(ioContext)
         {}
 
-        virtual std::shared_ptr<FTcpSocket> NewTcpSocket() = 0;
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpSocket> tcpSocket) = 0;
         virtual asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpSocket> tcpSocket, std::vector<uint8_t> data) = 0;
         virtual bool AcquireSocket(FTcpSocket* tcpSocket) = 0;
@@ -78,6 +87,52 @@ namespace Private {
         asio::ip::tcp::socket Socket;
         asio::ip::tcp::endpoint Endpoint;
         std::queue<std::vector<uint8_t>> WriteQueue;
+
+    };
+
+    class FRpcDispatcher {
+    public:
+        FRpcDispatcher() {
+        
+        }
+
+        template<typename Func>
+        bool AddFunc(std::string name, Func&& func) {
+            return FuncMap.insert(std::make_pair(name, [func = std::move(func)](json::array& args) { ; })).second;
+        }
+
+        std::unordered_map<std::string, std::function<void(json::array&)>> FuncMap;
+    };
+
+
+    class FRpcSocket : public FTcpSocket {
+    public:
+        FRpcSocket(ITcpContext& tcpContext)
+            : FTcpSocket(tcpContext)
+        {}
+
+        FRpcSocket(ITcpContext& tcpContext, asio::strand<asio::io_context::executor_type> strand, asio::ip::tcp::endpoint endpoint)
+            : FTcpSocket(tcpContext, strand, endpoint)
+        {}
+
+        ~FRpcSocket() { }
+
+        template<typename ... Args>
+        asio::awaitable<void> AsyncCall(int64_t requestId, std::string func, std::tuple<Args...> args) {
+            std::string callableString = json::serialize(json::value_from(std::make_tuple(requestId, func, args)));
+            uint32_t bufferSize = callableString.size();
+            std::vector<uint8_t> buffer;
+            buffer.resize(sizeof(uint32_t) + bufferSize);
+            *reinterpret_cast<uint32_t*>(buffer.data()) = EndianCast(bufferSize);
+            std::memcpy(buffer.data() + sizeof(uint32_t), callableString.data(), bufferSize);
+            Write(buffer);
+            co_return;
+        }
+
+        template<typename ... Args>
+        void Call(int64_t requestId, std::string func, Args&& ... args) {
+            asio::co_spawn(Strand, AsyncCall(requestId, std::move(func), std::make_tuple(args...)), asio::detached);
+        }
 
     };
 
