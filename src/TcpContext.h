@@ -10,6 +10,7 @@
 #include <boost/asio.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/json.hpp>
+#include <boost/callable_traits.hpp>
 
 namespace Private {
 
@@ -98,10 +99,14 @@ namespace Private {
 
         template<typename Func>
         bool AddFunc(std::string name, Func&& func) {
-            return FuncMap.insert(std::make_pair(name, [func = std::move(func)](json::array& args) { ; })).second;
+            using FuncArgs = boost::callable_traits::args_t<Func>;
+            auto f = [func = std::forward<Func>(func)](json::value& args) {
+                std::apply(func, json::value_to<FuncArgs>(args));
+            };
+            return FuncMap.insert(std::make_pair(name, f)).second;
         }
 
-        std::unordered_map<std::string, std::function<void(json::array&)>> FuncMap;
+        std::unordered_map<std::string, std::function<void(json::value&)>> FuncMap;
     };
 
 

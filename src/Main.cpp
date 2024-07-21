@@ -12,7 +12,9 @@ asio::io_context ioc;
 std::shared_ptr<FRpcClient> tcpClient = std::make_shared<FRpcClient>(ioc);
 
 asio::awaitable<void> test() {
-    tcpClient->RpcDispatcher.AddFunc("name", [](std::string a, std::string b) { ; });
+    tcpClient->RpcDispatcher.AddFunc("aaa", [](std::string a, std::string b) { 
+        std::cout << "rpc call aaa(" << a << "," << b <<  ")" << std::endl;
+    });
     auto tcpSocket = co_await tcpClient->AsyncStart(asio::ip::make_address("127.0.0.1"), 7772);
     tcpClient->Call(asio::ip::make_address_v4("127.0.0.1").to_uint(), "aaa", "bbb", "ccc");
 }

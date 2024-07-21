@@ -185,11 +185,10 @@ namespace Private {
                     auto& callableArgs = callableValue.as_array();
                     BOOST_ASSERT(callableArgs.size() == 3);
                     int64_t requestId = callableArgs[0].get_int64();
-                    std::string func = callableArgs[1].get_string().c_str();
-                    json::array& args = callableArgs[2].as_array();
+                    const char* func = callableArgs[1].get_string().c_str();
                     auto it = RpcDispatcher.FuncMap.find(func);
                     if (it != RpcDispatcher.FuncMap.end()) {
-                        it->second(args);
+                        it->second(callableArgs[2]);
                     }
                     BOOST_ASSERT(strand.running_in_this_thread());
                     //tcpSocket->Write(std::vector<uint8_t>(buffer, buffer + bytesTransferred));

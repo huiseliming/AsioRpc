@@ -5,6 +5,7 @@
     "dependencies": [
         "boost-asio",
         "boost-describe",
+        "boost-callable-traits",
         "boost-dll",
         "boost-interprocess",
         "boost-json"
