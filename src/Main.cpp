@@ -12,9 +12,6 @@ asio::io_context ioc;
 std::shared_ptr<FRpcClient> tcpClient = std::make_shared<FRpcClient>(ioc);
 
 asio::awaitable<void> test() {
-    tcpClient->RpcDispatcher.AddFunc("aaa", [](std::string a, std::string b) { 
-        std::cout << "rpc call aaa(" << a << "," << b <<  ")" << std::endl;
-    });
     auto tcpSocket = co_await tcpClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7772);
     tcpClient->Call("aaa", "bbb", "ccc");
 }
@@ -27,7 +24,10 @@ int main(int argc, char* argv[]) {
     });
     {
         asio::co_spawn(ioc, test(), asio::detached);
-        std::shared_ptr<FTcpServer> tcpServer = std::make_shared<FTcpServer>(ioc);
+        std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
+        tcpServer->RpcDispatcher.AddFunc("aaa", [](std::string a, std::string b) {
+            std::cout << "rpc call aaa(" << a << "," << b << ")" << std::endl;
+        });
         tcpServer->Start();
         std::this_thread::sleep_for(std::chrono::seconds(64));
     }
