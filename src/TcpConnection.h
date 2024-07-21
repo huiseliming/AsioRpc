@@ -35,6 +35,10 @@ namespace Cpp {
         void Write(std::vector<uint8_t> data) { asio::co_spawn(Strand, AsyncWrite(shared_from_this(), std::move(data)), asio::detached); }
         void Close() { asio::co_spawn(Strand, AsyncClose(shared_from_this()), asio::detached); }
 
+        void Read(std::shared_ptr<FTcpConnection> connection) { asio::co_spawn(Strand, AsyncRead(std::move(connection)), asio::detached); }
+        void Write(std::shared_ptr<FTcpConnection> connection, std::vector<uint8_t> data) { asio::co_spawn(Strand, AsyncWrite(std::move(connection), std::move(data)), asio::detached); }
+        void Close(std::shared_ptr<FTcpConnection> connection) { asio::co_spawn(Strand, AsyncClose(std::move(connection)), asio::detached); }
+
         asio::ip::tcp::socket& RefSocket() { return Socket; }
         asio::strand<asio::io_context::executor_type>& RefStrand() { return Strand; }
         asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }

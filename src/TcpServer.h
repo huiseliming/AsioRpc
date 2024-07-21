@@ -4,7 +4,6 @@
 namespace Cpp {
 
     class FTcpServer : public ITcpContext {
-        //using FTcpConnection = FTcpConnection;
     public:
         FTcpServer(asio::io_context& ioContext)
             : ITcpContext(ioContext)
