@@ -62,7 +62,7 @@ namespace Cpp {
 
     protected:
         asio::io_context& IoContext;
-        double OperationTimeout = 3;
+        double OperationTimeout = 3.f;
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;

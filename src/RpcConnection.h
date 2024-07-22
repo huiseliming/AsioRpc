@@ -32,7 +32,10 @@ namespace Cpp {
                     readTimeoutTimer.cancel();
                     std::vector<char> buffer;
                     buffer.resize(EndianCast(bufferSize));
+                    readTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
+                    readTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
                     bytesTransferred = co_await asio::async_read(Socket, asio::buffer(buffer), asio::use_awaitable);
+                    readTimeoutTimer.cancel();
                     TcpContext->OnRecvData(connection.get(), buffer.data(), buffer.size());
                 }
             }

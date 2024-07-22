@@ -46,15 +46,14 @@ namespace Cpp {
 
         asio::awaitable<std::shared_ptr<FTcpConnection>> AsyncConnect(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
+            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+            if (!ConnectionWeakPtr.expired())
+            {
+                co_return nullptr;
+            }
+            std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
+            ConnectionWeakPtr = connection;
             try {
-                co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-                if (!ConnectionWeakPtr.expired())
-                {
-                    co_return nullptr;
-                }
-                std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
-                ConnectionWeakPtr = connection;
-
                 asio::steady_timer connectTimeoutTimer(connection->RefStrand());
                 connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * GetOperationTimeout())));
                 connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
