@@ -44,12 +44,6 @@ namespace Cpp {
         asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }
         std::queue<std::vector<uint8_t>>& RefWriteQueue() { return WriteQueue; }
 
-    protected:
-        template<typename Func>
-        void SetCleanupFunc(Func&& func) {
-            CleanupFunc = std::forward<Func>(func);
-        }
-
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpConnection> connection)
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
@@ -104,6 +98,12 @@ namespace Cpp {
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
             co_return Socket.close();
+        }
+
+    protected:
+        template<typename Func>
+        void SetCleanupFunc(Func&& func) {
+            CleanupFunc = std::forward<Func>(func);
         }
 
     protected:

@@ -3,9 +3,11 @@
 #include "RpcDispatcher.h"
 #include "RpcConnection.h"
 
-namespace Cpp {
+namespace Cpp 
+{
 
-    class FRpcClient : public FTcpClient {
+    class FRpcClient : public FTcpClient 
+    {
     public:
         FRpcClient(asio::io_context& ioContext)
             : FTcpClient(ioContext)
@@ -18,9 +20,16 @@ namespace Cpp {
             return std::make_shared<FRpcConnection>(this, Strand, asio::ip::tcp::endpoint(address, port));
         }
 
-        virtual void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size)
-        {
+        virtual void OnConnected(FTcpConnection* connection) {
+            if (OnConnectedFunc) OnConnectedFunc(connection);
+        }
+
+        virtual void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size) {
             RpcDispatcher.RecvRpc(connection, data, size);
+        }
+
+        virtual void OnDisconnected(FTcpConnection* connection) {
+            if (OnDisconnectedFunc) OnDisconnectedFunc(connection);
         }
 
         template<typename Resp, typename ... Args>
@@ -32,6 +41,10 @@ namespace Cpp {
         }
 
         FRpcDispatcher RpcDispatcher;
+
+        std::function<void(FTcpConnection*)> OnConnectedFunc;
+        std::function<void(FTcpConnection*)> OnDisconnectedFunc;
+
     };
 
 }

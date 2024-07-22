@@ -30,12 +30,6 @@ namespace Cpp {
                     std::vector<char> buffer;
                     buffer.resize(EndianCast(bufferSize));
                     bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
-                    printf("recv : ");
-                    for (size_t i = 0; i < bytesTransferred; i++)
-                    {
-                        printf("%c", std::isprint(buffer[i]) ? buffer[i] : '?');
-                    }
-                    printf("\n");
                     TcpContext->OnRecvData(connection.get(), buffer.data(), buffer.size());
                 }
             }
