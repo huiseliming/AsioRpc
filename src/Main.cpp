@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
             co_return 7787;
         });
         tcpServer->Start();
-        std::this_thread::sleep_for(std::chrono::seconds(4));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         rpcClient.reset();
         tcpClient.reset();
     }

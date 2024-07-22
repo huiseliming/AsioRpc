@@ -57,7 +57,7 @@ namespace Cpp {
 
                 asio::deadline_timer deadlineTimer(connection->RefStrand());
                 deadlineTimer.expires_from_now(boost::posix_time::seconds(3));
-                deadlineTimer.async_wait([&](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
+                deadlineTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
                 co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
                 deadlineTimer.cancel();
                 if (connection->RefSocket().is_open())
