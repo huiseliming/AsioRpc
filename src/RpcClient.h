@@ -12,7 +12,11 @@ namespace Cpp
         FRpcClient(asio::io_context& ioContext)
             : FTcpClient(ioContext)
             , RpcDispatcher(this)
-        {}
+        {
+            RecvDataFunc = [this](FTcpConnection* connection, const char* data, std::size_t size) {
+                RpcDispatcher.RecvRpc(connection, data, size);
+            };
+        }
 
         ~FRpcClient() {
             Stop();
@@ -20,18 +24,6 @@ namespace Cpp
 
         virtual std::shared_ptr<FTcpConnection> NewConnection(asio::ip::address address, asio::ip::port_type port) {
             return std::make_shared<FRpcConnection>(this, Strand, asio::ip::tcp::endpoint(address, port));
-        }
-
-        virtual void OnConnected(FTcpConnection* connection) override {
-            if (OnConnectedFunc) OnConnectedFunc(connection);
-        }
-
-        virtual void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size) override {
-            RpcDispatcher.RecvRpc(connection, data, size);
-        }
-
-        virtual void OnDisconnected(FTcpConnection* connection) override {
-            if (OnDisconnectedFunc) OnDisconnectedFunc(connection);
         }
 
         template<typename Resp, typename ... Args>
@@ -43,10 +35,6 @@ namespace Cpp
         }
 
         FRpcDispatcher RpcDispatcher;
-
-        std::function<void(FTcpConnection*)> OnConnectedFunc;
-        std::function<void(FTcpConnection*)> OnDisconnectedFunc;
-
     };
 
 }

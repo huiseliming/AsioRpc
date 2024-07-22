@@ -36,13 +36,36 @@ namespace Cpp {
         virtual ~ITcpContext() {}
         asio::io_context& RefIoContext() { return IoContext; }
 
-        virtual void OnConnected(FTcpConnection* connection) { }
-        virtual void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size) { }
-        virtual void OnDisconnected(FTcpConnection* connection) { }
+        BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
+            LogFunc = logFunc;
+        }
+        BOOST_FORCEINLINE void SetConnectedFunc(std::function<void(FTcpConnection*)> connectedFunc) {
+            ConnectedFunc = ConnectedFunc;
+        }
+        BOOST_FORCEINLINE void SetDisconnectedFunc(std::function<void(FTcpConnection*)> disconnectedFunc) {
+            DisconnectedFunc = DisconnectedFunc;
+        }
+        BOOST_FORCEINLINE void SetRecvDataFunc(std::function<void(FTcpConnection*, const char*, std::size_t)> recvDataFunc) {
+            RecvDataFunc = RecvDataFunc;
+        }
+
+        BOOST_FORCEINLINE void OnConnected(FTcpConnection* connection) {
+            if (ConnectedFunc) ConnectedFunc(connection);
+        }
+        BOOST_FORCEINLINE void OnDisconnected(FTcpConnection* connection) {
+            if (DisconnectedFunc) DisconnectedFunc(connection);
+        }
+        BOOST_FORCEINLINE void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size) {
+            if (RecvDataFunc) RecvDataFunc(connection, data, size);
+        }
 
     protected:
         asio::io_context& IoContext;
 
+        std::function<void(const char*)> LogFunc;
+        std::function<void(FTcpConnection*)> ConnectedFunc;
+        std::function<void(FTcpConnection*)> DisconnectedFunc;
+        std::function<void(FTcpConnection*, const char*, std::size_t)> RecvDataFunc;
     };
 
 }

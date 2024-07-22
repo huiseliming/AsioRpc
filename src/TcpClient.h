@@ -68,7 +68,7 @@ namespace Cpp {
                         co_await connection->AsyncRead(connection);
                         co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
                         Connection.reset();
-                        }, asio::detached);
+                    }, asio::detached);
                     co_return connection;
                 }
             }

@@ -47,6 +47,7 @@ namespace Cpp {
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpConnection> connection)
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
+            TcpContext->OnConnected(connection.get());
             std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: connected" << std::endl;
             try
             {
@@ -55,12 +56,7 @@ namespace Cpp {
                 {
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     BOOST_ASSERT(Strand.running_in_this_thread());
-                    printf("client: ");
-                    for (size_t i = 0; i < bytesTransferred; i++)
-                    {
-                        printf("%c", buffer[i]);
-                    }
-                    printf("\n");
+                    TcpContext->OnRecvData(connection.get(), buffer, bytesTransferred);
                 }
             }
             catch (const std::exception& e)
@@ -69,6 +65,7 @@ namespace Cpp {
                 std::cout << "exception: " << e.what() << std::endl;
             }
             std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: disconnected" << std::endl;
+            TcpContext->OnDisconnected(connection.get());
         }
 
         virtual asio::awaitable<void> AsyncWrite(std::shared_ptr<FTcpConnection> connection, std::vector<uint8_t> data)

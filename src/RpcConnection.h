@@ -18,8 +18,8 @@ namespace Cpp {
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpConnection> connection) override
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
-            std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: connected" << std::endl;
             TcpContext->OnConnected(connection.get());
+            std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: connected" << std::endl;
             try
             {
                 for (;;)
