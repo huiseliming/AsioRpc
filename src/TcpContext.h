@@ -40,13 +40,13 @@ namespace Cpp {
             LogFunc = logFunc;
         }
         BOOST_FORCEINLINE void SetConnectedFunc(std::function<void(FTcpConnection*)> connectedFunc) {
-            ConnectedFunc = ConnectedFunc;
+            ConnectedFunc = connectedFunc;
         }
         BOOST_FORCEINLINE void SetDisconnectedFunc(std::function<void(FTcpConnection*)> disconnectedFunc) {
-            DisconnectedFunc = DisconnectedFunc;
+            DisconnectedFunc = disconnectedFunc;
         }
         BOOST_FORCEINLINE void SetRecvDataFunc(std::function<void(FTcpConnection*, const char*, std::size_t)> recvDataFunc) {
-            RecvDataFunc = RecvDataFunc;
+            RecvDataFunc = recvDataFunc;
         }
 
         BOOST_FORCEINLINE void OnConnected(FTcpConnection* connection) {

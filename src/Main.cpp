@@ -13,6 +13,13 @@ std::shared_ptr<FRpcClient> rpcClient = std::make_shared<FRpcClient>(ioc);
 std::shared_ptr<FTcpClient> tcpClient = std::make_shared<FTcpClient>(ioc);
 
 asio::awaitable<void> testTcp() {
+
+    tcpClient->SetConnectedFunc([](FTcpConnection* connection) { 
+        std::cout << "client connected " << std::endl;;
+    });
+    tcpClient->SetDisconnectedFunc([](FTcpConnection* connection) {
+        std::cout << "client disconnectd " << std::endl;
+    });
     tcpClient->SetRecvDataFunc([](FTcpConnection* connection, const char* data, std::size_t size) {
         printf("client: ");
         for (size_t i = 0; i < size; i++)
@@ -68,7 +75,7 @@ int main(int argc, char* argv[]) {
             co_return 7787;
         });
         tcpServer->Start();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(111));
         rpcClient.reset();
         tcpClient.reset();
     }
