@@ -18,7 +18,7 @@ asio::awaitable<void> test() {
         std::cout << "client disconnectd " << std::endl;
         };
     auto tcpSocket = co_await tcpClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7772);
-    tcpClient->Call("aaa", [](int v) -> asio::awaitable<void> { std::cout << "test " << v << std::endl; co_return; }, "bbb", "ccc");
+    tcpClient->Call("aaa", [](int v) -> asio::awaitable<void> { std::cout << "client resp " << std::endl; co_return; }, "bbb", "ccc");
 
 }
 
@@ -29,6 +29,10 @@ int main(int argc, char* argv[]) {
         ioc.run();
     });
     {
+        tcpClient->RpcDispatcher.AddFunc("ddd", [=](std::string a, std::string b) -> asio::awaitable<int> {
+            std::cout << "client call ddd(" << a << "," << b << ")" << std::endl;
+            co_return 7787;
+            });
         asio::co_spawn(ioc, test(), asio::detached);
         std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
         tcpServer->OnConnectedFunc = [](FTcpConnection* connection) { 
@@ -37,8 +41,11 @@ int main(int argc, char* argv[]) {
         tcpServer->OnDisconnectedFunc = [](FTcpConnection* connection) { 
             std::cout << "server disconnected " << std::endl;; 
         };
-        tcpServer->RpcDispatcher.AddFunc("aaa", [](std::string a, std::string b) -> asio::awaitable<int> {
-            std::cout << "rpc call aaa(" << a << "," << b << ")" << std::endl;
+        tcpServer->RpcDispatcher.AddFunc("aaa", [=](std::string a, std::string b) -> asio::awaitable<int> {
+            std::cout << "server call aaa(" << a << "," << b << ")" << std::endl;
+            tcpServer->Call(asio::ip::make_address_v4("127.0.0.1"), "ddd", [] {
+                std::cout << "server resp " << std::endl;
+            }, "eee", "fff");
             co_return 7787;
         });
         tcpServer->Start();

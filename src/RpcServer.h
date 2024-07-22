@@ -32,6 +32,28 @@ namespace Cpp
             if (OnDisconnectedFunc) OnDisconnectedFunc(connection);
         }
 
+        template<typename Resp, typename ... Args>
+        void Call(asio::ip::address_v4 address, std::string func, Resp&& resp, Args&& ... args) {
+            auto keyComp = ConnectionMap.key_comp();
+            FConnectionId begin = std::pair(address.to_uint(), asio::ip::port_type(0));
+            FConnectionId end = std::pair(address.to_uint(), asio::ip::port_type(-1));
+            for (auto it = ConnectionMap.lower_bound(begin); it != ConnectionMap.end() && !keyComp(end, it->first); it++)
+            {
+                if (auto connection = it->second.lock())
+                {
+                    RpcDispatcher.SendRpcRequest(connection.get(), func, std::forward<Resp>(resp), std::forward<Args>(args)...);
+                }
+            }
+        }
+
+        template<typename Resp, typename ... Args>
+        void Call(std::shared_ptr<FTcpConnection> connection, std::string func, Resp&& resp, Args&& ... args) {
+            if (connection)
+            {
+                RpcDispatcher.SendRpcRequest(connection.get(), func, std::forward<Resp>(resp), std::forward<Args>(args)...);
+            }
+        }
+
         FRpcDispatcher RpcDispatcher;
 
         std::function<void(FTcpConnection*)> OnConnectedFunc;
