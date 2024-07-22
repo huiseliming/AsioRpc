@@ -22,7 +22,6 @@ namespace Cpp {
             TcpContext->OnConnected(connection.get());
             try
             {
-                char buffer[4 * 1024];
                 for (;;)
                 {
                     uint32_t bufferSize;

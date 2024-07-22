@@ -33,7 +33,7 @@ namespace Cpp {
         ITcpContext(asio::io_context& ioContext)
             : IoContext(ioContext)
         {}
-
+        virtual ~ITcpContext() {}
         asio::io_context& RefIoContext() { return IoContext; }
 
         virtual void OnConnected(FTcpConnection* connection) { }

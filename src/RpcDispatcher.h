@@ -27,7 +27,7 @@ namespace Cpp{
                     if constexpr (!std::is_same_v<FuncReturnType, asio::awaitable<void>>)
                         value = co_await std::apply(func, json::value_to<FuncArgs>(args));
                     else
-                        std::apply(func, json::value_to<FuncArgs>(args));
+                        co_await std::apply(func, json::value_to<FuncArgs>(args));
                 }
                 else
                 {

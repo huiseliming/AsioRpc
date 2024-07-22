@@ -35,7 +35,7 @@ namespace Cpp {
                 std::this_thread::yield();
             }
             Acceptor.reset();
-            asio::co_spawn(Strand, [=]() -> asio::awaitable<void> {
+            asio::co_spawn(Strand, [=, this]() -> asio::awaitable<void> {
                 BOOST_ASSERT(Strand.running_in_this_thread());
                 for (auto& [id, connectionWeakPtr] : ConnectionMap)
                 {

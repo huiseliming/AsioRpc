@@ -21,7 +21,7 @@ namespace Cpp {
             , Endpoint(endpoint)
         {}
 
-        ~FTcpConnection() {
+        virtual ~FTcpConnection() {
             if (CleanupFunc)
             {
                 CleanupFunc();
