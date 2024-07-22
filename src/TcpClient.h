@@ -65,7 +65,7 @@ namespace Cpp {
                         BOOST_ASSERT(Strand.running_in_this_thread());
                         Connection = connection;
                         co_await connection->AsyncRead(connection);
-                        co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                        BOOST_ASSERT(Strand.running_in_this_thread());
                         Connection.reset();
                     }, asio::detached);
                     co_return connection;
