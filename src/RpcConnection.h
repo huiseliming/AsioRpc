@@ -26,10 +26,10 @@ namespace Cpp {
                 for (;;)
                 {
                     uint32_t bufferSize;
-                    auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(&bufferSize, sizeof(bufferSize)), asio::use_awaitable);
+                    auto bytesTransferred = co_await asio::async_read(Socket, asio::buffer(&bufferSize, sizeof(bufferSize)), asio::use_awaitable);
                     std::vector<char> buffer;
                     buffer.resize(EndianCast(bufferSize));
-                    bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
+                    bytesTransferred = co_await asio::async_read(Socket, asio::buffer(buffer), asio::use_awaitable);
                     TcpContext->OnRecvData(connection.get(), buffer.data(), buffer.size());
                 }
             }

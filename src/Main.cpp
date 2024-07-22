@@ -20,7 +20,6 @@ asio::awaitable<void> test() {
     auto tcpSocket = co_await tcpClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7772);
     tcpClient->Call("aaa", [](int v) -> asio::awaitable<void> { std::cout << "test " << v << std::endl; co_return; }, "bbb", "ccc");
 
-
 }
 
 int main(int argc, char* argv[]) {
@@ -32,18 +31,18 @@ int main(int argc, char* argv[]) {
     {
         asio::co_spawn(ioc, test(), asio::detached);
         std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
-
-        tcpServer->OnConnectedFunc = [](FTcpConnection* connection) { std::cout << "server connected " << std::endl;; };
+        tcpServer->OnConnectedFunc = [](FTcpConnection* connection) { 
+            std::cout << "server connected " << std::endl; 
+        };
         tcpServer->OnDisconnectedFunc = [](FTcpConnection* connection) { 
-            std::cout << "server disconnectd " << std::endl;; 
-            
+            std::cout << "server disconnected " << std::endl;; 
         };
         tcpServer->RpcDispatcher.AddFunc("aaa", [](std::string a, std::string b) -> asio::awaitable<int> {
             std::cout << "rpc call aaa(" << a << "," << b << ")" << std::endl;
             co_return 7787;
         });
         tcpServer->Start();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(32));
         tcpClient.reset();
     }
     work.reset();
