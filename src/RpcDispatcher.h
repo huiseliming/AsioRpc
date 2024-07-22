@@ -116,7 +116,7 @@ namespace Cpp{
         asio::awaitable<void> AsyncRecvRpcResponse(std::shared_ptr<FTcpConnection> connection, json::array rpcData) {
             try
             {
-                asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
                 int64_t id = rpcData[0].get_int64();
                 auto it = ResponseMap.find(id);
                 if (it != ResponseMap.end()) {
