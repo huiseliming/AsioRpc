@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
         tcpServer->OnDisconnectedFunc = [](FTcpConnection* connection) { 
             std::cout << "server disconnected " << std::endl;; 
         };
-        tcpServer->RpcDispatcher.AddFunc("aaa", [=](std::string a, std::string b) -> asio::awaitable<int> {
+        tcpServer->RpcDispatcher.AddFunc("aaa", [tcpServer = tcpServer.get()](std::string a, std::string b) -> asio::awaitable<int> {
             std::cout << "server call aaa(" << a << "," << b << ")" << std::endl;
             tcpServer->Call(asio::ip::make_address_v4("127.0.0.1"), "ddd", [] {
                 std::cout << "server resp " << std::endl;
