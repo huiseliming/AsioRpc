@@ -12,7 +12,9 @@ namespace Cpp
             , RpcDispatcher(this)
         {}
 
-        ~FRpcServer() {}
+        ~FRpcServer() {
+            Stop();
+        }
 
         virtual std::shared_ptr<FTcpConnection> NewConnection() {
             return std::make_shared<FRpcConnection>(this);

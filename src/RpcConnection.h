@@ -39,7 +39,7 @@ namespace Cpp {
                 std::cout << "exception: " << e.what() << std::endl;
             }
             std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: disconnected" << std::endl;
-            TcpContext->OnConnected(connection.get());
+            TcpContext->OnDisconnected(connection.get());
         }
 
     };

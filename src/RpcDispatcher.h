@@ -59,8 +59,8 @@ namespace Cpp{
         BOOST_INLINE_CONSTEXPR void SendRpcRequest(FTcpConnection* connection, std::string func, Resp&& resp, Args&& ... args) {
             asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(func), std::forward<Resp>(resp), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
-    protected:
 
+    protected:
         void AsyncSendRpcData(std::shared_ptr<FTcpConnection> connection, json::value rpcData) {
             std::string respValueString = json::serialize(rpcData);
             uint32_t bufferSize = respValueString.size();
@@ -136,5 +136,6 @@ namespace Cpp{
         std::unordered_map<std::string, std::function<asio::awaitable<json::value>(json::value)>> RequestMap;
         std::unordered_map<int64_t, std::function<asio::awaitable<void>(json::value)>> ResponseMap;
         std::atomic<int64_t> IndexGenerator;
+
     };
 }
