@@ -55,11 +55,11 @@ namespace Cpp {
                 std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
                 ConnectionWeakPtr = connection;
 
-                asio::deadline_timer deadlineTimer(connection->RefStrand());
-                deadlineTimer.expires_from_now(boost::posix_time::seconds(3));
-                deadlineTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
+                asio::steady_timer connectTimeoutTimer(connection->RefStrand());
+                connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * GetOperationTimeout())));
+                connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
                 co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
-                deadlineTimer.cancel();
+                connectTimeoutTimer.cancel();
                 if (connection->RefSocket().is_open())
                 {
                     asio::co_spawn(connection->Strand, [=]() -> asio::awaitable<void> {

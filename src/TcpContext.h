@@ -35,6 +35,7 @@ namespace Cpp {
         {}
         virtual ~ITcpContext() {}
         asio::io_context& RefIoContext() { return IoContext; }
+        double GetOperationTimeout() { return OperationTimeout; }
 
         BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
             LogFunc = logFunc;
@@ -61,11 +62,12 @@ namespace Cpp {
 
     protected:
         asio::io_context& IoContext;
-
+        double OperationTimeout = 3;
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;
         std::function<void(FTcpConnection*, const char*, std::size_t)> RecvDataFunc;
+        
     };
 
 }
