@@ -37,6 +37,9 @@ namespace Cpp {
         asio::io_context& RefIoContext() { return IoContext; }
         double GetOperationTimeout() { return OperationTimeout; }
 
+        BOOST_FORCEINLINE void SetOperationTimeout(double operationTimeout) {
+            OperationTimeout = operationTimeout;
+        }
         BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
             LogFunc = logFunc;
         }

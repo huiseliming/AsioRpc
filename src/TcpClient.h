@@ -63,10 +63,8 @@ namespace Cpp {
                 {
                     asio::co_spawn(connection->Strand, [=]() -> asio::awaitable<void> {
                         BOOST_ASSERT(Strand.running_in_this_thread());
-                        Connection = connection;
                         co_await connection->AsyncRead(connection);
                         BOOST_ASSERT(Strand.running_in_this_thread());
-                        Connection.reset();
                     }, asio::detached);
                     co_return connection;
                 }
@@ -79,7 +77,6 @@ namespace Cpp {
 
     protected:
         asio::strand<asio::io_context::executor_type> Strand;
-        std::shared_ptr<FTcpConnection> Connection;
         std::weak_ptr<FTcpConnection> ConnectionWeakPtr;
 
     };

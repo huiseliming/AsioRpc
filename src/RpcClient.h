@@ -13,6 +13,14 @@ namespace Cpp
             : FTcpClient(ioContext)
             , RpcDispatcher(this)
         {
+            ConnectedFunc = [this](FTcpConnection* connection) {
+                Connection = connection->shared_from_this();
+                OnAttached();
+            };
+            DisconnectedFunc = [this](FTcpConnection* connection) {
+                OnDetached();
+                Connection.reset();
+            };
             RecvDataFunc = [this](FTcpConnection* connection, const char* data, std::size_t size) {
                 RpcDispatcher.RecvRpc(connection, data, size);
             };
@@ -34,7 +42,27 @@ namespace Cpp
             }
         }
 
+        void OnAttached() {
+            if (AttachedFunc) AttachedFunc();
+        }
+
+        void OnDetached() {
+            if (DetachedFunc) DetachedFunc();
+        }
+
+        void SetAttachedFunc(std::function<void()> func) {
+            AttachedFunc = func;
+        }
+
+        void SetDetachedFunc(std::function<void()> func) {
+            DetachedFunc = func;
+        }
+
         FRpcDispatcher RpcDispatcher;
+        std::shared_ptr<FTcpConnection> Connection;
+        std::function<void()> AttachedFunc;
+        std::function<void()> DetachedFunc;
+
     };
 
 }
