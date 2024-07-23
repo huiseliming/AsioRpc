@@ -64,7 +64,7 @@ namespace Cpp {
                     }
                 }
                 catch (const std::exception& e) {
-                    std::cout << "exception: " << e.what() << std::endl;
+                    Log(fmt::format("FTcpClient::AsyncConnect > exception : {}", e.what()).c_str());
                 }
             }
             co_return nullptr;

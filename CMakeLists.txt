@@ -21,6 +21,9 @@ src/TcpContext.h
 src/TcpServer.h
 AsioRpc.h)
 
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(Example PRIVATE fmt::fmt-header-only)
+
 find_package(boost_describe CONFIG REQUIRED)
 find_package(boost_asio CONFIG REQUIRED)
 find_package(boost_dll CONFIG REQUIRED)

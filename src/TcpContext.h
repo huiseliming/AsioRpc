@@ -7,6 +7,7 @@
 #include <iostream>
 #include <functional>
 #include <unordered_map>
+#include <fmt/format.h>
 #include <boost/asio.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/json.hpp>
@@ -53,6 +54,9 @@ namespace Cpp {
             RecvDataFunc = recvDataFunc;
         }
 
+        BOOST_FORCEINLINE void Log(const char* msg) {
+            if (LogFunc) LogFunc(msg);
+        }
         BOOST_FORCEINLINE void OnConnected(FTcpConnection* connection) {
             if (ConnectedFunc) ConnectedFunc(connection);
         }

@@ -8,6 +8,7 @@
         "boost-callable-traits",
         "boost-dll",
         "boost-interprocess",
-        "boost-json"
+        "boost-json",
+        "fmt"
     ]
 }

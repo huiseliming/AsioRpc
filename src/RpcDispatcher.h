@@ -110,7 +110,7 @@ namespace Cpp{
             }
             catch (const std::exception& e)
             {
-                std::cout << "exception: " << e.what() << std::endl;
+                TcpContext->Log(fmt::format("FRpcDispatcher::AsyncRecvRpcRequest[{}:{}] > exception : {}", connection->RefEndpoint().address().to_string(), connection->RefEndpoint().port(), e.what()).c_str());
             }
         }
 
@@ -128,7 +128,7 @@ namespace Cpp{
             }
             catch (const std::exception& e)
             {
-                std::cout << "exception: " << e.what() << std::endl;
+                TcpContext->Log(fmt::format("FRpcDispatcher::AsyncRecvRpcResponse[{}:{}] > exception : {}", connection->RefEndpoint().address().to_string(), connection->RefEndpoint().port(), e.what()).c_str());
             }
         }
 

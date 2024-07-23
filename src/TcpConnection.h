@@ -48,7 +48,7 @@ namespace Cpp {
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
             TcpContext->OnConnected(connection.get());
-            std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: connected" << std::endl;
+            TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > connected", Endpoint.address().to_string(), Endpoint.port()).c_str());
             try
             {
                 asio::steady_timer readTimeoutTimer(connection->RefStrand());
@@ -66,9 +66,9 @@ namespace Cpp {
             catch (const std::exception& e)
             {
                 Socket.close();
-                std::cout << "exception: " << e.what() << std::endl;
+                TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > exception : {}", Endpoint.address().to_string(), Endpoint.port(), e.what()).c_str());
             }
-            std::cout << "conn[" << Endpoint.address().to_string() << ":" << Endpoint.port() << "]: disconnected" << std::endl;
+            TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > disconnected", Endpoint.address().to_string(), Endpoint.port()).c_str());
             TcpContext->OnDisconnected(connection.get());
         }
 
@@ -91,7 +91,7 @@ namespace Cpp {
             catch (const std::exception& e)
             {
                 Socket.close();
-                std::cout << "exception: " << e.what() << std::endl;
+                TcpContext->Log(fmt::format("FTcpConnection::AsyncWrite[{}:{}] > exception : {}", Endpoint.address().to_string(), Endpoint.port(), e.what()).c_str());
             }
         }
 

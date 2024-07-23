@@ -83,7 +83,7 @@ namespace Cpp {
             }
             catch (const std::exception& e)
             {
-                std::cout << "exception: " << e.what() << std::endl;
+                Log(fmt::format("FTcpServer::AsyncAccept > exception : {}", e.what()).c_str());
             }
         }
 

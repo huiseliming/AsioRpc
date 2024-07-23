@@ -54,13 +54,21 @@ int main(int argc, char* argv[]) {
     });
     {
         //asio::co_spawn(ioc, testTcp(), asio::detached);
-        
+        rpcClient->SetLogFunc([](const char* msg) {
+            std::cout << msg << std::endl;
+            });
+        tcpClient->SetLogFunc([](const char* msg) {
+            std::cout << msg << std::endl;
+            });
         rpcClient->RpcDispatcher.AddFunc("exec", [=](std::string cmd) -> asio::awaitable<int> {
             std::cout << "client exec > " << cmd << std::endl;
             co_return 7787;
         });
         asio::co_spawn(ioc, test(), asio::detached);
         std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
+        tcpServer->SetLogFunc([](const char* msg) {
+            std::cout << msg << std::endl;
+        });
         tcpServer->SetConnectedFunc([](FTcpConnection* connection) {
             std::cout << "server connected " << std::endl; 
         });
