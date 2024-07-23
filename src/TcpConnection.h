@@ -51,7 +51,7 @@ namespace Cpp {
             TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > connected", Endpoint.address().to_string(), Endpoint.port()).c_str());
             try
             {
-                asio::steady_timer readTimeoutTimer(connection->RefStrand());
+                asio::steady_timer readTimeoutTimer(Strand);
                 char buffer[4 * 1024];
                 for (;;)
                 {
