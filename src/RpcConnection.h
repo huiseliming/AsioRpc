@@ -28,7 +28,7 @@ namespace Cpp {
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
             TcpContext->OnConnected(connection.get());
-            TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > connected", Endpoint.address().to_string(), Endpoint.port()).c_str());
+            TcpContext->Log(fmt::format("FRpcConnection::AsyncRead[{}:{}] > connected", Endpoint.address().to_string(), Endpoint.port()).c_str());
 
             asio::steady_timer heartbeatTimeoutTimer(Strand);
             auto heartbeatSenderFuture= asio::co_spawn(Strand, AsyncSendHeartbeat(heartbeatTimeoutTimer), asio::use_future);
@@ -57,12 +57,12 @@ namespace Cpp {
             catch (const std::exception& e)
             {
                 Socket.close();
-                TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > exception : {}", Endpoint.address().to_string(), Endpoint.port(), e.what()).c_str());
+                TcpContext->Log(fmt::format("FRpcConnection::AsyncRead[{}:{}] > exception : {}", Endpoint.address().to_string(), Endpoint.port(), e.what()).c_str());
             }
             readTimeoutTimer.cancel();
             heartbeatTimeoutTimer.cancel();
             heartbeatSenderFuture.get();
-            TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > disconnected", Endpoint.address().to_string(), Endpoint.port()).c_str());
+            TcpContext->Log(fmt::format("FRpcConnection::AsyncRead[{}:{}] > disconnected", Endpoint.address().to_string(), Endpoint.port()).c_str());
             TcpContext->OnDisconnected(connection.get());
         }
 

@@ -16,10 +16,8 @@ src/RpcConnection.h
 src/RpcServer.h
 src/TcpConnection.h
 src/TcpClient.h
-src/Connection.h
 src/TcpContext.h
-src/TcpServer.h
-AsioRpc.h)
+src/TcpServer.h)
 
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(Example PRIVATE fmt::fmt-header-only)
