@@ -44,22 +44,6 @@ namespace Cpp {
         asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }
         std::queue<std::vector<uint8_t>>& RefWriteQueue() { return WriteQueue; }
 
-        asio::awaitable<void> WatchHeartbeat(asio::strand<asio::io_context::executor_type> strand, std::shared_ptr<FTcpConnection> connection) {
-            BOOST_ASSERT(strand.running_in_this_thread());
-            asio::steady_timer readTimeoutTimer(strand);
-            system::error_code errorCode;
-            for (;;)
-            {
-                readTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
-                std::tie(errorCode) = co_await readTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
-                if (!errorCode)
-                {
-                    connection->RefSocket().close();
-                    break;
-                }
-            }
-        }
-
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpConnection> connection)
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
@@ -72,7 +56,7 @@ namespace Cpp {
                 for (;;)
                 {
                     readTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
-                    readTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
+                    readTimeoutTimer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     readTimeoutTimer.cancel();
                     BOOST_ASSERT(Strand.running_in_this_thread());

@@ -20,7 +20,7 @@ namespace Cpp {
             return std::make_shared<FTcpConnection>(this, Strand, asio::ip::tcp::endpoint(address, port));
         }
 
-        std::future<std::shared_ptr<FTcpConnection>> Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
+        std::future<std::shared_ptr<FTcpConnection>> Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
         {
             return asio::co_spawn(Strand, AsyncConnect(address, port), asio::use_future);
         }
