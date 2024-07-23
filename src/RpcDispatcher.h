@@ -20,7 +20,7 @@ namespace Cpp{
         bool AddFunc(std::string name, Func&& func) {
             using FuncReturnType = boost::callable_traits::return_type_t<Func>;
             using FuncArgs = boost::callable_traits::args_t<Func>;
-            auto f = [func = std::forward<Func>(func)](json::value args) -> asio::awaitable<json::value> {
+            return RequestMap.insert(std::make_pair(name, [func = std::forward<Func>(func)](json::value args) -> asio::awaitable<json::value> {
                 json::value value;
                 if constexpr (IsAsioAwaitable<FuncReturnType>::value)
                 {
@@ -37,8 +37,7 @@ namespace Cpp{
                         std::apply(func, json::value_to<FuncArgs>(args));
                 }
                 co_return value;
-            };
-            return RequestMap.insert(std::make_pair(name, f)).second;
+            })).second;
         }
 
         void RecvRpc(FTcpConnection* connection, const char* data, std::size_t size) {
@@ -57,7 +56,25 @@ namespace Cpp{
 
         template<typename Resp, typename ... Args>
         BOOST_INLINE_CONSTEXPR void SendRpcRequest(FTcpConnection* connection, std::string func, Resp&& resp, Args&& ... args) {
-            asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(func), std::forward<Resp>(resp), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+            using RespReturnType = boost::callable_traits::return_type_t<Resp>;
+            using RespArgsType = boost::callable_traits::args_t<Resp>;
+            asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(func), [resp = std::forward<Resp>(resp)](json::value val) -> asio::awaitable<void> {
+                if constexpr (std::tuple_size_v<RespArgsType>)
+                {
+                    if constexpr (IsAsioAwaitable<RespReturnType>::value)
+                        co_await resp(json::value_to<std::decay_t<std::tuple_element_t<0, RespArgsType>>>(val));
+                    else
+                        resp(json::value_to<std::decay_t<std::tuple_element_t<0, RespArgsType>>>(val));
+                }
+                else
+                {
+                    if constexpr (IsAsioAwaitable<RespReturnType>::value)
+                        co_await resp();
+                    else
+                        resp();
+                }
+                co_return;
+            }, std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
 
     protected:
@@ -71,27 +88,11 @@ namespace Cpp{
             connection->Write(std::move(connection), buffer);
         }
 
-        template<typename Resp, typename ... Args>
-        asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, std::string func, Resp&& resp, std::tuple<Args...> args) {
+        template<typename ... Args>
+        asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, std::string func, std::function<asio::awaitable<void>(json::value)> resp, std::tuple<Args...> args) {
             BOOST_ASSERT(Strand.running_in_this_thread());
             int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-            using RespArgs = boost::callable_traits::args_t<Resp>;
-            if constexpr (std::tuple_size_v<RespArgs>)
-                ResponseMap.insert(std::pair(id, [resp = std::forward<Resp>(resp)](json::value val) -> asio::awaitable<void> {
-                    if constexpr (IsAsioAwaitable<boost::callable_traits::return_type_t<Resp>>::value)
-                        co_await resp(json::value_to<std::decay_t<std::tuple_element_t<0, RespArgs>>>(val));
-                    else
-                        resp(json::value_to<std::decay_t<std::tuple_element_t<0, RespArgs>>>(val));
-                    co_return;
-                }));
-            else
-                ResponseMap.insert(std::pair(id, [resp = std::forward<Resp>(resp)](json::value val) -> asio::awaitable<void> {
-                    if constexpr (IsAsioAwaitable<boost::callable_traits::return_type_t<Resp>>::value)
-                        co_await resp();
-                    else
-                        resp();
-                    co_return;
-                }));
+            ResponseMap.insert(std::pair(id, resp));
             AsyncSendRpcData(std::move(connection), json::array({ id, func, json::value_from(args) }));
             co_return;
         }
@@ -104,7 +105,7 @@ namespace Cpp{
                 auto it = RequestMap.find(func);
                 if (it != RequestMap.end()) {
                     json::value respValue = co_await it->second(rpcData[2]);
-                    AsyncSendRpcData(connection->shared_from_this(), json::array({ id, json::value(), json::value_from(respValue)}) );
+                    AsyncSendRpcData(connection->shared_from_this(), json::array({ id, json::value(), respValue}) );
                 }
             }
             catch (const std::exception& e)

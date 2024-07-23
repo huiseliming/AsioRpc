@@ -47,30 +47,25 @@ namespace Cpp {
         asio::awaitable<std::shared_ptr<FTcpConnection>> AsyncConnect(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
             co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            if (!ConnectionWeakPtr.expired())
+            if (ConnectionWeakPtr.expired())
             {
-                co_return nullptr;
-            }
-            std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
-            ConnectionWeakPtr = connection;
-            try {
-                asio::steady_timer connectTimeoutTimer(connection->RefStrand());
-                connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * GetOperationTimeout())));
-                connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
-                co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
-                connectTimeoutTimer.cancel();
-                if (connection->RefSocket().is_open())
-                {
-                    asio::co_spawn(connection->Strand, [=]() -> asio::awaitable<void> {
-                        BOOST_ASSERT(Strand.running_in_this_thread());
-                        co_await connection->AsyncRead(connection);
-                        BOOST_ASSERT(Strand.running_in_this_thread());
-                    }, asio::detached);
-                    co_return connection;
+                std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
+                ConnectionWeakPtr = connection;
+                try {
+                    asio::steady_timer connectTimeoutTimer(connection->RefStrand());
+                    connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * GetOperationTimeout())));
+                    connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
+                    co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
+                    connectTimeoutTimer.cancel();
+                    if (connection->RefSocket().is_open())
+                    {
+                        asio::co_spawn(connection->Strand, connection->AsyncRead(connection), asio::detached);
+                        co_return connection;
+                    }
                 }
-            }
-            catch (const std::exception& e) {
-                std::cout << "exception: " << e.what() << std::endl;
+                catch (const std::exception& e) {
+                    std::cout << "exception: " << e.what() << std::endl;
+                }
             }
             co_return nullptr;
         }
