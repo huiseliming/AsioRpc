@@ -29,7 +29,7 @@ namespace Cpp {
         void Stop()
         {
             if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = Acceptor.lock()) {
-                asio::dispatch(Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
+                asio::post(Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
             }
             while (!Acceptor.expired()) {
                 std::this_thread::yield();
