@@ -36,8 +36,10 @@ namespace Cpp {
         {}
         virtual ~ITcpContext() {}
         asio::io_context& RefIoContext() { return IoContext; }
+        std::vector<uint8_t>& RefHeartbeatData() { return HeartbeatData; }
         double GetOperationTimeout() { return OperationTimeout; }
 
+        BOOST_FORCEINLINE void SetHeartbeatData(std::vector<uint8_t> buffer) { HeartbeatData = std::move(buffer); }
         BOOST_FORCEINLINE void SetOperationTimeout(double operationTimeout) {
             OperationTimeout = operationTimeout;
         }
@@ -70,6 +72,7 @@ namespace Cpp {
     protected:
         asio::io_context& IoContext;
         double OperationTimeout = 3.f;
+        std::vector<uint8_t> HeartbeatData;
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;

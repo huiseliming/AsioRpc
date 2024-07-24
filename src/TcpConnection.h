@@ -44,21 +44,35 @@ namespace Cpp {
         asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }
         std::queue<std::vector<uint8_t>>& RefWriteQueue() { return WriteQueue; }
 
+        asio::awaitable<void> AsyncSendHeartbeat(asio::steady_timer& heartbeatTimeoutTimer) {
+            while (Socket.is_open())
+            {
+                Write(TcpContext->RefHeartbeatData());
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout()) / 2 - 1)));
+                system::error_code errorCode;
+                std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
+                if (errorCode) break;
+            }
+        }
+
         virtual asio::awaitable<void> AsyncRead(std::shared_ptr<FTcpConnection> connection)
         {
             BOOST_ASSERT(Strand.running_in_this_thread());
             TcpContext->OnConnected(connection.get());
             TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > connected", Endpoint.address().to_string(), Endpoint.port()).c_str());
+
+            asio::steady_timer heartbeatTimeoutTimer(Strand);
+            auto heartbeatSenderFuture = asio::co_spawn(Strand, AsyncSendHeartbeat(heartbeatTimeoutTimer), asio::use_future);
+            asio::steady_timer timer(Strand);
             try
             {
-                asio::steady_timer readTimeoutTimer(Strand);
                 char buffer[4 * 1024];
                 for (;;)
                 {
-                    readTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
-                    readTimeoutTimer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
+                    timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
-                    readTimeoutTimer.cancel();
+                    timer.cancel();
                     BOOST_ASSERT(Strand.running_in_this_thread());
                     TcpContext->OnRecvData(connection.get(), buffer, bytesTransferred);
                 }
@@ -68,6 +82,14 @@ namespace Cpp {
                 Socket.close();
                 TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > exception : {}", Endpoint.address().to_string(), Endpoint.port(), e.what()).c_str());
             }
+            timer.cancel();
+            heartbeatTimeoutTimer.cancel();
+            while (!heartbeatSenderFuture._Is_ready())
+            {
+                timer.expires_after(std::chrono::milliseconds(1));
+                co_await timer.async_wait(asio::use_awaitable);
+            }
+            heartbeatSenderFuture.get();
             TcpContext->Log(fmt::format("FTcpConnection::AsyncRead[{}:{}] > disconnected", Endpoint.address().to_string(), Endpoint.port()).c_str());
             TcpContext->OnDisconnected(connection.get());
         }

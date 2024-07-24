@@ -13,7 +13,7 @@ namespace Cpp {
         {}
 
         ~FTcpClient() {
-            Stop();
+            Stop().get();
         }
 
         virtual std::shared_ptr<FTcpConnection> NewConnection(asio::ip::address address, asio::ip::port_type port) {
@@ -25,9 +25,9 @@ namespace Cpp {
             return asio::co_spawn(Strand, AsyncConnect(address, port), asio::use_future);
         }
 
-        void Stop()
+        std::future<void> Stop()
         {
-            asio::co_spawn(Strand, AsyncStop(ConnectionWeakPtr), asio::use_future).get();
+            return asio::co_spawn(Strand, AsyncStop(ConnectionWeakPtr), asio::use_future);
         }
 
         asio::awaitable<void> AsyncStop(std::weak_ptr<FTcpConnection> connectionWeakPtr)
