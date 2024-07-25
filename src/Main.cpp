@@ -7,42 +7,42 @@
 using namespace Cpp;
 
 asio::io_context ioc;
-std::shared_ptr<FRpcClient> rpcClient = std::make_shared<FRpcClient>(ioc);
+//std::shared_ptr<FRpcClient> rpcClient = std::make_shared<FRpcClient>(ioc);
 std::shared_ptr<FTcpClient> tcpClient = std::make_shared<FTcpClient>(ioc);
 
-asio::awaitable<void> testTcp() {
 
-    tcpClient->SetConnectedFunc([](FTcpConnection* connection) { 
+void testTcp() {
+    tcpClient->GetTcpContext()->HeartbeatData = { 'r', 'p', 'c', };
+    tcpClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
+    tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) {
         std::cout << "client connected " << std::endl;;
-    });
-    tcpClient->SetDisconnectedFunc([](FTcpConnection* connection) {
+    };
+    tcpClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) {
         std::cout << "client disconnectd " << std::endl;
-    });
-    tcpClient->SetRecvDataFunc([](FTcpConnection* connection, const char* data, std::size_t size) {
-        printf("client: ");
+    };
+    tcpClient->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, const char* data, std::size_t size) {
+        printf("server: ");
         for (size_t i = 0; i < size; i++)
         {
             printf("%c", data[i]);
         }
         printf("\n");
-    });
-    auto tcpSocket = co_await tcpClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7777);
-
-    co_return;
+    };
+    tcpClient->Start();
 }
 
-asio::awaitable<void> test() {
-    rpcClient->SetAttachedFunc([]() { 
-        rpcClient->Call("exec", []() -> asio::awaitable<void> {
-            std::cout << "server exec < " << std::endl;
-            co_return;
-        }, "print(\"client\")");
-    });
-    rpcClient->SetDetachedFunc([]() {
-        std::cout << "client disconnectd " << std::endl;
-    });
-    auto tcpSocket = co_await rpcClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7772);
-}
+//asio::awaitable<void> test() {
+//    rpcClient->SetAttachedFunc([]() { 
+//        rpcClient->Call("exec", []() -> asio::awaitable<void> {
+//            std::cout << "server exec < " << std::endl;
+//            co_return;
+//        }, "print(\"client\")");
+//    });
+//    rpcClient->SetDetachedFunc([]() {
+//        std::cout << "client disconnectd " << std::endl;
+//    });
+//    auto tcpSocket = co_await rpcClient->AsyncConnect(asio::ip::make_address("127.0.0.1"), 7772);
+//}
 
 int main(int argc, char* argv[]) {
 
@@ -51,38 +51,52 @@ int main(int argc, char* argv[]) {
         ioc.run();
     });
     {
-        //asio::co_spawn(ioc, testTcp(), asio::detached);
-        rpcClient->SetLogFunc([](const char* msg) {
-            std::cout << msg << std::endl;
-            });
-        tcpClient->SetLogFunc([](const char* msg) {
-            std::cout << msg << std::endl;
-            });
-        rpcClient->RpcDispatcher.AddFunc("exec", [=](std::string cmd) -> asio::awaitable<int> {
-            std::cout << "client exec > " << cmd << std::endl;
-            co_return 7787;
-        });
-        asio::co_spawn(ioc, test(), asio::detached);
-        std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
-        tcpServer->SetLogFunc([](const char* msg) {
-            std::cout << msg << std::endl;
-        });
-        tcpServer->SetConnectedFunc([](FTcpConnection* connection) {
-            std::cout << "server connected " << std::endl; 
-        });
-        tcpServer->SetDisconnectedFunc([](FTcpConnection* connection) {
-            std::cout << "server disconnected " << std::endl;; 
-        });
-        tcpServer->RpcDispatcher.AddFunc("exec", [tcpServer = tcpServer.get()](std::string cmd) -> asio::awaitable<int> {
-            std::cout << "server exec > " << cmd << std::endl;
-            tcpServer->Call(asio::ip::make_address_v4("127.0.0.1"), "exec", [] {
-                std::cout << "client exec < " << std::endl;
-            }, "print(\"server\")");
-            co_return 7787;
-        });
+        //rpcClient->SetLogFunc([](const char* msg) {
+        //    std::cout << msg << std::endl;
+        //    });
+        //tcpClient->SetLogFunc([](const char* msg) {
+        //    std::cout << msg << std::endl;
+        //    });
+        //rpcClient->RpcDispatcher.AddFunc("exec", [=](std::string cmd) -> asio::awaitable<int> {
+        //    std::cout << "client exec > " << cmd << std::endl;
+        //    co_return 7787;
+        //});
+        //asio::co_spawn(ioc, test(), asio::detached);
+        //std::shared_ptr<FRpcServer> tcpServer = std::make_shared<FRpcServer>(ioc);
+        //tcpServer->SetLogFunc([](const char* msg) {
+        //    std::cout << msg << std::endl;
+        //});
+        //tcpServer->SetConnectedFunc([](FTcpConnection* connection) {
+        //    std::cout << "server connected " << std::endl; 
+        //});
+        //tcpServer->SetDisconnectedFunc([](FTcpConnection* connection) {
+        //    std::cout << "server disconnected " << std::endl;; 
+        //});
+        //tcpServer->RpcDispatcher.AddFunc("exec", [tcpServer = tcpServer.get()](std::string cmd) -> asio::awaitable<int> {
+        //    std::cout << "server exec > " << cmd << std::endl;
+        //    tcpServer->Call(asio::ip::make_address_v4("127.0.0.1"), "exec", [] {
+        //        std::cout << "client exec < " << std::endl;
+        //    }, "print(\"server\")");
+        //    co_return 7787;
+        //});
+        //tcpServer->Start();
+        std::shared_ptr<FTcpServer> tcpServer = std::make_shared<FTcpServer>(ioc);
+        tcpServer->GetTcpContext()->HeartbeatData = { 'r', 'p', 'c', };
+        tcpServer->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
+        tcpServer->GetTcpContext()->ConnectedFunc = std::bind(&FTcpServer::OnConnected, std::weak_ptr(tcpServer), std::placeholders::_1);
+        tcpServer->GetTcpContext()->DisconnectedFunc = std::bind(&FTcpServer::OnDisconnected, std::weak_ptr(tcpServer), std::placeholders::_1);
+        tcpServer->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, const char* data, std::size_t size) {
+            printf("client: ");
+            for (size_t i = 0; i < size; i++)
+            {
+                printf("%c", data[i]);
+            }
+            printf("\n");
+        };
         tcpServer->Start();
-        std::this_thread::sleep_for(std::chrono::seconds(111));
-        rpcClient.reset();
+        testTcp();
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        //rpcClient.reset();
         tcpClient.reset();
     }
     work.reset();

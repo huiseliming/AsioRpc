@@ -8,14 +8,14 @@ namespace Cpp {
     class FTcpConnection : public std::enable_shared_from_this<FTcpConnection>
     {
     public:
-        FTcpConnection(ITcpContext* tcpContext)
-            : TcpContext(tcpContext)
-            , Strand(asio::make_strand(tcpContext->RefIoContext()))
+        FTcpConnection(std::shared_ptr<ITcpContext> tcpContext)
+            : TcpContext(std::move(tcpContext))
+            , Strand(asio::make_strand(TcpContext->IoContext))
             , Socket(Strand)
         {}
 
-        FTcpConnection(ITcpContext* tcpContext, asio::strand<asio::io_context::executor_type> strand, asio::ip::tcp::endpoint endpoint)
-            : TcpContext(tcpContext)
+        FTcpConnection(std::shared_ptr<ITcpContext> tcpContext, asio::strand<asio::io_context::executor_type> strand, asio::ip::tcp::endpoint endpoint)
+            : TcpContext(std::move(tcpContext))
             , Strand(strand)
             , Socket(strand)
             , Endpoint(endpoint)
@@ -47,8 +47,8 @@ namespace Cpp {
         asio::awaitable<void> AsyncSendHeartbeat(asio::steady_timer& heartbeatTimeoutTimer) {
             while (Socket.is_open())
             {
-                Write(TcpContext->RefHeartbeatData());
-                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout()) / 2 - 1)));
+                Write(TcpContext->HeartbeatData);
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * TcpContext->OperationTimeout) / 2 - 1)));
                 system::error_code errorCode;
                 std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                 if (errorCode) break;
@@ -69,7 +69,7 @@ namespace Cpp {
                 char buffer[4 * 1024];
                 for (;;)
                 {
-                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->GetOperationTimeout())));
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();
@@ -130,7 +130,7 @@ namespace Cpp {
         }
 
     protected:
-        ITcpContext* TcpContext;
+        std::shared_ptr<ITcpContext> TcpContext;
         asio::strand<asio::io_context::executor_type> Strand;
         asio::ip::tcp::socket Socket;
         asio::ip::tcp::endpoint Endpoint;

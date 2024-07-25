@@ -28,33 +28,33 @@ namespace Cpp {
         return val;
     }
 
-    class ITcpContext
+    class ITcpContext : public std::enable_shared_from_this<ITcpContext>
     {
     public:
         ITcpContext(asio::io_context& ioContext)
             : IoContext(ioContext)
         {}
         virtual ~ITcpContext() {}
-        asio::io_context& RefIoContext() { return IoContext; }
-        std::vector<uint8_t>& RefHeartbeatData() { return HeartbeatData; }
-        double GetOperationTimeout() { return OperationTimeout; }
+        //asio::io_context& RefIoContext() { return IoContext; }
+        //std::vector<uint8_t>& RefHeartbeatData() { return HeartbeatData; }
+        //double GetOperationTimeout() { return OperationTimeout; }
 
-        BOOST_FORCEINLINE void SetHeartbeatData(std::vector<uint8_t> buffer) { HeartbeatData = std::move(buffer); }
-        BOOST_FORCEINLINE void SetOperationTimeout(double operationTimeout) {
-            OperationTimeout = operationTimeout;
-        }
-        BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
-            LogFunc = logFunc;
-        }
-        BOOST_FORCEINLINE void SetConnectedFunc(std::function<void(FTcpConnection*)> connectedFunc) {
-            ConnectedFunc = connectedFunc;
-        }
-        BOOST_FORCEINLINE void SetDisconnectedFunc(std::function<void(FTcpConnection*)> disconnectedFunc) {
-            DisconnectedFunc = disconnectedFunc;
-        }
-        BOOST_FORCEINLINE void SetRecvDataFunc(std::function<void(FTcpConnection*, const char*, std::size_t)> recvDataFunc) {
-            RecvDataFunc = recvDataFunc;
-        }
+        //BOOST_FORCEINLINE void SetHeartbeatData(std::vector<uint8_t> buffer) { HeartbeatData = std::move(buffer); }
+        //BOOST_FORCEINLINE void SetOperationTimeout(double operationTimeout) {
+        //    OperationTimeout = operationTimeout;
+        //}
+        //BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
+        //    LogFunc = logFunc;
+        //}
+        //BOOST_FORCEINLINE void SetConnectedFunc(std::function<void(FTcpConnection*)> connectedFunc) {
+        //    ConnectedFunc = connectedFunc;
+        //}
+        //BOOST_FORCEINLINE void SetDisconnectedFunc(std::function<void(FTcpConnection*)> disconnectedFunc) {
+        //    DisconnectedFunc = disconnectedFunc;
+        //}
+        //BOOST_FORCEINLINE void SetRecvDataFunc(std::function<void(FTcpConnection*, const char*, std::size_t)> recvDataFunc) {
+        //    RecvDataFunc = recvDataFunc;
+        //}
 
         BOOST_FORCEINLINE void Log(const char* msg) {
             if (LogFunc) LogFunc(msg);
@@ -69,7 +69,7 @@ namespace Cpp {
             if (RecvDataFunc) RecvDataFunc(connection, data, size);
         }
 
-    protected:
+    //protected:
         asio::io_context& IoContext;
         double OperationTimeout = 3.f;
         std::vector<uint8_t> HeartbeatData;

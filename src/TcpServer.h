@@ -3,43 +3,85 @@
 
 namespace Cpp {
 
-    class FTcpServer : public ITcpContext {
+    class FTcpServer {
     public:
         FTcpServer(asio::io_context& ioContext)
-            : ITcpContext(ioContext)
+            : Impl(std::make_shared<FImpl>(ioContext))
             , Strand(asio::make_strand(ioContext))
-        {}
+        {
+        
+        }     
+
+        FTcpServer(asio::io_context& ioContext, asio::strand<asio::io_context::executor_type> strand)
+            : Impl(std::make_shared<FImpl>(ioContext))
+            , Strand(strand)
+        {
+
+        }
 
         ~FTcpServer() {
             Stop();
         }
 
-        virtual std::shared_ptr<FTcpConnection> NewConnection() {
-            return std::make_shared<FTcpConnection>(this);
-        }
-
         void Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
             Stop();
-            auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Strand, asio::ip::tcp::endpoint(address, port));
-            Acceptor = acceptor;
-            asio::co_spawn(Strand, AsyncAccept(acceptor), asio::detached);
+            auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Impl->Strand, asio::ip::tcp::endpoint(address, port));
+            WeakAcceptor = acceptor;
+            asio::co_spawn(Impl->Strand, Impl->AsyncAccept(Impl, acceptor), asio::detached);
         }
 
         void Stop()
         {
-            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = Acceptor.lock()) {
-                asio::post(Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
+            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = WeakAcceptor.lock()) {
+                asio::post(Impl->Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
             }
-            while (!Acceptor.expired()) {
-                std::this_thread::yield();
+        }
+
+        class FImpl : public ITcpContext {
+        public:
+            FImpl(asio::io_context& ioContext)
+                : ITcpContext(ioContext)
+                , Strand(asio::make_strand(ioContext))
+            {}
+
+            ~FImpl() {}
+
+            virtual std::shared_ptr<FTcpConnection> NewConnection() {
+                return std::make_shared<FTcpConnection>(shared_from_this());
             }
-            Acceptor.reset();
-            asio::co_spawn(Strand, [=, this]() -> asio::awaitable<void> {
-                BOOST_ASSERT(Strand.running_in_this_thread());
-                for (auto& [id, connectionWeakPtr] : ConnectionMap)
+
+            virtual asio::awaitable<void> AsyncAccept(std::shared_ptr<FImpl> self, std::shared_ptr<asio::ip::tcp::acceptor> acceptor) {
+                std::map<FTcpConnection*, std::weak_ptr<FTcpConnection>> ConnectionMap;
+                try
                 {
-                    if (auto connection = connectionWeakPtr.lock())
+                    for (;;)
+                    {
+                        std::shared_ptr<FTcpConnection> connection = NewConnection();
+                        co_await acceptor->async_accept(connection->RefSocket(), connection->RefEndpoint(), asio::use_awaitable);
+                        BOOST_ASSERT(Strand.running_in_this_thread());
+                        if (!connection->RefEndpoint().address().is_v4())
+                        {
+                            continue;
+                        }
+                        co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                        auto connectionRawPtr = connection.get();
+                        auto insertResult = ConnectionMap.insert(std::make_pair(connectionRawPtr, connection));
+                        if (insertResult.second)
+                        {
+                            connection->SetCleanupFunc([&, this] { asio::post(Strand, [&, this] {ConnectionMap.erase(connectionRawPtr); }); });
+                            connection->Read();
+                        }
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    Log(fmt::format("FTcpServer::AsyncAccept > exception : {}", e.what()).c_str());
+                }
+                BOOST_ASSERT(Strand.running_in_this_thread());
+                for (auto& [id, weakConnection] : ConnectionMap)
+                {
+                    if (auto connection = weakConnection.lock())
                     {
                         connection->Close();
                     }
@@ -51,46 +93,53 @@ namespace Cpp {
                     co_await timer.async_wait(asio::use_awaitable);
                     BOOST_ASSERT(Strand.running_in_this_thread());
                 }
-                }, asio::use_future).get();
+            }
+
+            asio::strand<asio::io_context::executor_type> Strand;
+        };
+
+        static void OnConnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
+            if (auto server = weakServer.lock())
+            {
+                auto serverRawPtr = server.get();
+                asio::post(serverRawPtr->Strand,
+                    [
+                        server = std::move(server), 
+                        connectionId = connectionRawPtr->GetId(), 
+                        connection = connectionRawPtr->shared_from_this()
+                    ]{ 
+                        server->ConnectionMap.insert(std::make_pair(connectionId, std::move(connection)));
+                    });
+            }
         }
 
-        virtual asio::awaitable<void> AsyncAccept(std::shared_ptr<asio::ip::tcp::acceptor> acceptor) {
-            try
+        static void OnDisconnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
+            if (auto server = weakServer.lock())
             {
-                for (;;)
-                {
-                    std::shared_ptr<FTcpConnection> connection = NewConnection();
-                    co_await acceptor->async_accept(connection->RefSocket(), connection->RefEndpoint(), asio::use_awaitable);
-                    if (!connection->RefEndpoint().address().is_v4())
-                    {
-                        continue;
-                    }
-                    co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-                    auto connectionId = connection->GetId();
-                    auto insertResult = ConnectionMap.insert(std::make_pair(connectionId, connection));
-                    if (insertResult.second)
-                    {
-                        connection->SetCleanupFunc([=, this] {
-                            asio::co_spawn(Strand, [=, this]() -> asio::awaitable<void> {
-                                BOOST_ASSERT(Strand.running_in_this_thread());
-                                ConnectionMap.erase(connectionId);
-                                co_return;
-                                }, asio::detached);
-                            });
-                        connection->Read();
-                    }
-                }
-            }
-            catch (const std::exception& e)
-            {
-                Log(fmt::format("FTcpServer::AsyncAccept > exception : {}", e.what()).c_str());
+                auto serverRawPtr = server.get();
+                asio::post(serverRawPtr->Strand,
+                    [
+                        server = std::move(server), 
+                        connectionId = connectionRawPtr->GetId(), 
+                        connection = connectionRawPtr->shared_from_this()
+                    ]{
+                        auto it = server->ConnectionMap.find(connectionId);
+                        if (it != server->ConnectionMap.end() && it->second == connection)
+                        {
+                            server->ConnectionMap.erase(it);
+                        }
+                    });
             }
         }
+
+        ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
-        std::weak_ptr<asio::ip::tcp::acceptor> Acceptor;
+        std::shared_ptr<FImpl> Impl;
+        std::weak_ptr<asio::ip::tcp::acceptor> WeakAcceptor;
+
         asio::strand<asio::io_context::executor_type> Strand;
-        std::map<FConnectionId, std::weak_ptr<FTcpConnection>> ConnectionMap;
+        std::map<FConnectionId, std::shared_ptr<FTcpConnection>> ConnectionMap;
     };
 
 }

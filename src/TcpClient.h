@@ -3,76 +3,73 @@
 
 namespace Cpp {
 
-    class FTcpClient : public ITcpContext
+    class FTcpClient
     {
     public:
-
         FTcpClient(asio::io_context& ioContext)
-            : ITcpContext(ioContext)
-            , Strand(asio::make_strand(ioContext))
+            : Impl(std::make_shared<FImpl>(ioContext))
         {}
 
         ~FTcpClient() {
-            Stop().get();
+            Stop();
         }
 
-        virtual std::shared_ptr<FTcpConnection> NewConnection(asio::ip::address address, asio::ip::port_type port) {
-            return std::make_shared<FTcpConnection>(this, Strand, asio::ip::tcp::endpoint(address, port));
-        }
-
-        std::future<std::shared_ptr<FTcpConnection>> Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
+        void Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
         {
-            return asio::co_spawn(Strand, AsyncConnect(address, port), asio::use_future);
+            Stop();
+            std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
+            asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
+            WeakConnection = connection;
         }
 
-        std::future<void> Stop()
+        void Stop()
         {
-            return asio::co_spawn(Strand, AsyncStop(ConnectionWeakPtr), asio::use_future);
-        }
-
-        asio::awaitable<void> AsyncStop(std::weak_ptr<FTcpConnection> connectionWeakPtr)
-        {
-            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            if (auto connection = connectionWeakPtr.lock()) {
-                connection->Close();
-            }
-            asio::steady_timer timer(Strand);
-            while (!connectionWeakPtr.expired()) {
-                timer.expires_after(std::chrono::milliseconds(1));
-                co_await timer.async_wait(asio::use_awaitable);
-                BOOST_ASSERT(Strand.running_in_this_thread());
+            if (std::shared_ptr<FTcpConnection> connection = WeakConnection.lock()) {
+                connection->Close(std::move(connection));
             }
         }
 
-        asio::awaitable<std::shared_ptr<FTcpConnection>> AsyncConnect(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
-        {
-            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            if (ConnectionWeakPtr.expired())
+        class FImpl : public ITcpContext {
+        public:
+            FImpl(asio::io_context& ioContext)
+                : ITcpContext(ioContext)
+                , Strand(asio::make_strand(ioContext))
+            {}
+
+            ~FImpl() {}
+
+            virtual std::shared_ptr<FTcpConnection> NewConnection(asio::ip::address address, asio::ip::port_type port) {
+                return std::make_shared<FTcpConnection>(shared_from_this(), Strand, asio::ip::tcp::endpoint(address, port));
+            }
+
+            asio::awaitable<void> AsyncConnect(std::shared_ptr<FImpl> self, std::shared_ptr<FTcpConnection> connection)
             {
-                std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
-                ConnectionWeakPtr = connection;
+                BOOST_ASSERT(Strand.running_in_this_thread());
                 try {
                     asio::steady_timer connectTimeoutTimer(connection->RefStrand());
-                    connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * GetOperationTimeout())));
+                    connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
                     connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
                     co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
+                    BOOST_ASSERT(Strand.running_in_this_thread() || connection->RefStrand().running_in_this_thread());
                     connectTimeoutTimer.cancel();
                     if (connection->RefSocket().is_open())
                     {
                         asio::co_spawn(connection->Strand, connection->AsyncRead(connection), asio::detached);
-                        co_return connection;
                     }
                 }
                 catch (const std::exception& e) {
                     Log(fmt::format("FTcpClient::AsyncConnect > exception : {}", e.what()).c_str());
                 }
             }
-            co_return nullptr;
-        }
+
+            asio::strand<asio::io_context::executor_type> Strand;
+        };
+
+        ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
-        asio::strand<asio::io_context::executor_type> Strand;
-        std::weak_ptr<FTcpConnection> ConnectionWeakPtr;
+        std::shared_ptr<FImpl> Impl;
+        std::weak_ptr<FTcpConnection> WeakConnection;
 
     };
 
