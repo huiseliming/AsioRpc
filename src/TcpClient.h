@@ -33,10 +33,6 @@ namespace Cpp {
                     {
                         asio::co_spawn(connection->Strand, connection->AsyncRead(connection), asio::detached);
                     }
-                    else
-                    {
-                        OnDisconnected(connection.get());
-                    }
                 }
                 catch (const std::exception& e) {
                     Log(fmt::format("FTcpClient::AsyncConnect > exception : {}", e.what()).c_str());
@@ -64,8 +60,8 @@ namespace Cpp {
                 TcpContextInitializer = nullptr;
             }
             std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
-            asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
             WeakConnection = connection;
+            asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
         }
 
         void Stop()
@@ -78,28 +74,25 @@ namespace Cpp {
         ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
-        void OnConnected(std::shared_ptr<FTcpConnection> connection) {
+        void OnConnected(FTcpConnection* rawConnection) {
 
         }
 
-        void OnDisconnected(std::shared_ptr<FTcpConnection> connection) {
-            if (connection)
-            {
+        void OnDisconnected(FTcpConnection* rawConnection) {
 
-            }
         }
 
         virtual void InitTcpContext() {
             Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Impl->IoContext, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnConnected(std::move(connection)); });
+                    OnConnected(rawConnection);
                 }
             };
             Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Impl->IoContext, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnDisconnected(std::move(connection)); });
+                    OnDisconnected(rawConnection);
                 }
             };
         }
@@ -108,6 +101,7 @@ namespace Cpp {
         std::shared_ptr<FImpl> Impl;
         std::weak_ptr<FTcpConnection> WeakConnection;
         std::function<void()> TcpContextInitializer;
+        bool bAutoReconnect = true;
     };
 
 }
