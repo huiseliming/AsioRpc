@@ -71,9 +71,9 @@ namespace Cpp {
 
         void Stop()
         {
-            asio::post(Impl->Strand, [selfImpl = Impl] {
-                BOOST_ASSERT(selfImpl->Strand.running_in_this_thread());
-                if (std::shared_ptr<FTcpConnection> connection = selfImpl->WeakConnection.lock()) {
+            asio::post(Impl->Strand, [impl = Impl] {
+                BOOST_ASSERT(impl->Strand.running_in_this_thread());
+                if (std::shared_ptr<FTcpConnection> connection = impl->WeakConnection.lock()) {
                     auto rawConnection = connection.get();
                     rawConnection->CleanupFunc = nullptr;
                     rawConnection->Close(std::move(connection));
@@ -91,7 +91,6 @@ namespace Cpp {
     protected:
         std::shared_ptr<FImpl> Impl;
         std::function<void()> TcpContextInitializer;
-        bool bAutoReconnect = true;
     };
 
 }

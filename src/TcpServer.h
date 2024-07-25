@@ -37,7 +37,7 @@ namespace Cpp {
                         auto insertResult = ConnectionMap.insert(std::make_pair(connectionRawPtr, connection));
                         if (insertResult.second)
                         {
-                            connection->SetCleanupFunc([&, this] { asio::post(Strand, [&, this] {ConnectionMap.erase(connectionRawPtr); }); });
+                            connection->SetCleanupFunc([=, &ConnectionMap] { asio::post(Strand, [=, &ConnectionMap] { ConnectionMap.erase(connectionRawPtr); }); });
                             connection->Read();
                         }
                     }
@@ -65,6 +65,7 @@ namespace Cpp {
 
             asio::strand<asio::io_context::executor_type> Strand;
         };
+
     public:
         FTcpServer(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)
             : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))

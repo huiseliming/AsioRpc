@@ -62,12 +62,8 @@ int main(int argc, char* argv[]) {
         std::shared_ptr<FTcpClient> tcpClient = std::make_shared<FTcpClient>(ioc);
         tcpClient->GetTcpContext()->HeartbeatData = { 'r', 'p', 'c', };
         tcpClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) {
-            std::cout << "client connected " << std::endl;;
-            };
-        tcpClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) {
-            std::cout << "client disconnectd " << std::endl;
-            };
+        tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) { };
+        tcpClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) { };
         tcpClient->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, const char* data, std::size_t size) {
             printf("server: ");
             for (size_t i = 0; i < size; i++)
@@ -76,19 +72,6 @@ int main(int argc, char* argv[]) {
             }
             printf("\n");
         };
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
-        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
         tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
         tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
 
