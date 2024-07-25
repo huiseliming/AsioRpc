@@ -57,6 +57,11 @@ namespace Cpp {
         void Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
         {
             Stop();
+            if (InitTcpContextFunc)
+            {
+                InitTcpContextFunc();
+                InitTcpContextFunc = nullptr;
+            }
             std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
             asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
             WeakConnection = connection;
@@ -74,7 +79,7 @@ namespace Cpp {
     protected:
         std::shared_ptr<FImpl> Impl;
         std::weak_ptr<FTcpConnection> WeakConnection;
-
+        std::function<void()> InitTcpContextFunc;
     };
 
 }
