@@ -24,77 +24,21 @@ namespace Cpp
             , RpcDispatcher(std::make_shared<FRpcDispatcher>(Impl))
             , Strand(asio::make_strand(ioContext))
         {
-
+            Impl->InitFunc = [this] {
+                Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
+                    rpcDispatcher->RecvRpc(connection, data, size);
+                };
+            };
         }
 
         ~FRpcClient() {
         }
 
-        void OnConnected(std::shared_ptr<FTcpConnection> connection) {
-            BOOST_ASSERT(Strand.running_in_this_thread());
-            Connection = connection->shared_from_this();
-            OnAttached();
-        }
-
-        void OnDisconnected(std::shared_ptr<FTcpConnection> connection) {
-            BOOST_ASSERT(Strand.running_in_this_thread());
-            if (Connection == connection)
-            {
-                Connection.reset();
-            }
-            OnDetached();
-        }
-
-        virtual void InitTcpContext() override {
-            Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
-                if (auto self = weakSelf.lock())
-                {
-                    asio::post(Strand, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnConnected(std::move(connection)); });
-                }
-            };
-            Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
-                if (auto self = weakSelf.lock())
-                {
-                    asio::post(Strand, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnDisconnected(std::move(connection)); });
-                }
-            };
-            Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
-                rpcDispatcher->RecvRpc(connection, data, size);
-            };
-        }
-
-        template<typename Func, typename ... Args>
-        void Call(std::string name, Func&& func, Args&& ... args) {
-            if (Connection)
-            {
-                asio::co_spawn(Impl->IoContext, RpcDispatcher->AsyncCall(RpcDispatcher, Connection, std::move(name), FRpcDispatcher::ToRequestFunc(func), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
-            }
-        }
-
-        void OnAttached() {
-            if (AttachedFunc) AttachedFunc();
-        }
-
-        void OnDetached() {
-            if (DetachedFunc) DetachedFunc();
-        }
-
-        void SetAttachedFunc(std::function<void()> func) {
-            AttachedFunc = func;
-        }
-
-        void SetDetachedFunc(std::function<void()> func) {
-            DetachedFunc = func;
-        }
-
-        FRpcDispatcher& RefRpcDispatcher() { return *RpcDispatcher; }
+        std::shared_ptr<FRpcDispatcher>& RefRpcDispatcher() { return RpcDispatcher; }
 
     protected:
         std::shared_ptr<FRpcDispatcher> RpcDispatcher;
         asio::strand<asio::io_context::executor_type> Strand;
-        std::shared_ptr<FTcpConnection> Connection;
-        std::function<void()> AttachedFunc;
-        std::function<void()> DetachedFunc;
 
     };
 

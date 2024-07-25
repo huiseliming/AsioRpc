@@ -9,7 +9,7 @@ namespace Cpp{
     template<typename T>
     struct IsAsioAwaitable<asio::awaitable<T>> : std::true_type { };
 
-    class FRpcDispatcher {
+    class FRpcDispatcher : public std::enable_shared_from_this<FRpcDispatcher> {
     public:
 
         template<typename Func>
@@ -63,6 +63,11 @@ namespace Cpp{
                 }
                 co_return value;
             })).second;
+        }
+
+        template<typename Func, typename ... Args>
+        void Call(std::shared_ptr<FTcpConnection> connection, std::string name, Func&& func, Args&& ... args) {
+            asio::co_spawn(Strand, AsyncCall(shared_from_this(), std::move(connection), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
 
         template<typename Func, typename ... Args>

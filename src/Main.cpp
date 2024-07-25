@@ -14,34 +14,47 @@ int main(int argc, char* argv[]) {
         ioc.run();
     });
     {
+
+        std::shared_ptr<std::map<FConnectionId, std::shared_ptr<FTcpConnection>>> ConnectionMap = std::make_shared<std::map<FConnectionId, std::shared_ptr<FTcpConnection>>>();
         std::shared_ptr<FRpcServer> rpcServer = std::make_shared<FRpcServer>(ioc);
         rpcServer->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        //rpcServer->GetTcpContext()->ConnectedFunc = std::bind(&FTcpServer::OnConnected, std::weak_ptr(rpcServer), std::placeholders::_1);
-        //rpcServer->GetTcpContext()->DisconnectedFunc = std::bind(&FTcpServer::OnDisconnected, std::weak_ptr(rpcServer), std::placeholders::_1);
-        rpcServer->RefRpcDispatcher().AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<int> {
+        rpcServer->GetTcpContext()->ConnectedFunc = [=](FTcpConnection* connection) {
+            ConnectionMap->insert(std::make_pair(connection->GetId(), connection->shared_from_this()));
+        };
+        rpcServer->GetTcpContext()->DisconnectedFunc = [=](FTcpConnection* connection) {
+            auto it = ConnectionMap->find(connection->GetId());
+            if (it != ConnectionMap->end() && it->second.get() == connection)
+            {
+                ConnectionMap->erase(it);
+            }
+        };
+        rpcServer->RefRpcDispatcher()->AddFunc("exec", [&, rpcDispatcher = rpcServer->RefRpcDispatcher()](std::string cmd) -> asio::awaitable<int> {
             std::cout << "server exec > " << cmd << std::endl;
-            rpcServer->Call(asio::ip::make_address_v4("127.0.0.1"), "exec", [] {
-                std::cout << "client exec < " << std::endl;
-            }, "print(\"server\")");
+            for (auto [_, connection] : *ConnectionMap)
+            {
+                rpcDispatcher->Call(connection, "exec", [] {
+                    std::cout << "client exec < " << std::endl;
+                }, "print(\"server\")");
+            }
             co_return 7787;
         });
         rpcServer->Start();
 
         std::shared_ptr<FRpcClient> rpcClient = std::make_shared<FRpcClient>(ioc);
         rpcClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        rpcClient->RefRpcDispatcher().AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<void> {
+        rpcClient->RefRpcDispatcher()->AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<void> {
             std::cout << "client exec > " << cmd << std::endl;
             co_return;
         });
-        rpcClient->SetAttachedFunc([rpcClient = rpcClient.get()]() {
-            rpcClient->Call("exec", []() -> asio::awaitable<void> {
+        rpcClient->GetTcpContext()->ConnectedFunc = [rpcDispatcher = rpcClient->RefRpcDispatcher()](FTcpConnection* connection) {
+            rpcDispatcher->Call(connection->shared_from_this(), "exec", []() -> asio::awaitable<void> {
                 std::cout << "server exec < " << std::endl;
                 co_return;
             }, "print(\"client\")");
-        });
-        rpcClient->SetDetachedFunc([]() {
-            std::cout << "client disconnectd " << std::endl;
-        });
+        };
+        rpcClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) { 
+            std::cout << "DisconnectedFunc" << std::endl; 
+        };
         rpcClient->Start();
 
         std::shared_ptr<FTcpServer> tcpServer = std::make_shared<FTcpServer>(ioc);

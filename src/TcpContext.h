@@ -36,6 +36,13 @@ namespace Cpp {
         {}
         virtual ~ITcpContext() {}
 
+        BOOST_FORCEINLINE void Init() {
+            if (InitFunc)
+            {
+                InitFunc();
+                InitFunc = nullptr;
+            }
+        }
         BOOST_FORCEINLINE void Log(const char* msg) {
             if (LogFunc) LogFunc(msg);
         }
@@ -53,6 +60,7 @@ namespace Cpp {
         asio::io_context& IoContext;
         double OperationTimeout = 3.f;
         std::vector<uint8_t> HeartbeatData;
+        std::function<void()> InitFunc;
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;
