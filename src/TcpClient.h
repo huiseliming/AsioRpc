@@ -5,31 +5,8 @@ namespace Cpp {
 
     class FTcpClient
     {
-    public:
-        FTcpClient(asio::io_context& ioContext)
-            : Impl(std::make_shared<FImpl>(ioContext))
-        {}
-
-        ~FTcpClient() {
-            Stop();
-        }
-
-        void Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
-        {
-            Stop();
-            std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
-            asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
-            WeakConnection = connection;
-        }
-
-        void Stop()
-        {
-            if (std::shared_ptr<FTcpConnection> connection = WeakConnection.lock()) {
-                connection->Close(std::move(connection));
-            }
-        }
-
-        class FImpl : public ITcpContext {
+    protected:
+        struct FImpl : public ITcpContext {
         public:
             FImpl(asio::io_context& ioContext)
                 : ITcpContext(ioContext)
@@ -56,6 +33,10 @@ namespace Cpp {
                     {
                         asio::co_spawn(connection->Strand, connection->AsyncRead(connection), asio::detached);
                     }
+                    else
+                    {
+                        OnDisconnected(connection.get());
+                    }
                 }
                 catch (const std::exception& e) {
                     Log(fmt::format("FTcpClient::AsyncConnect > exception : {}", e.what()).c_str());
@@ -64,6 +45,29 @@ namespace Cpp {
 
             asio::strand<asio::io_context::executor_type> Strand;
         };
+    public:
+        FTcpClient(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)
+            : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+        {}
+
+        ~FTcpClient() {
+            Stop();
+        }
+
+        void Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
+        {
+            Stop();
+            std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
+            asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
+            WeakConnection = connection;
+        }
+
+        void Stop()
+        {
+            if (std::shared_ptr<FTcpConnection> connection = WeakConnection.lock()) {
+                connection->Close(std::move(connection));
+            }
+        }
 
         ITcpContext* GetTcpContext() { return Impl.get(); };
 

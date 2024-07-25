@@ -3,42 +3,10 @@
 
 namespace Cpp {
 
-    class FTcpServer {
-    public:
-        FTcpServer(asio::io_context& ioContext)
-            : Impl(std::make_shared<FImpl>(ioContext))
-            , Strand(asio::make_strand(ioContext))
-        {
-        
-        }     
-
-        FTcpServer(asio::io_context& ioContext, asio::strand<asio::io_context::executor_type> strand)
-            : Impl(std::make_shared<FImpl>(ioContext))
-            , Strand(strand)
-        {
-
-        }
-
-        ~FTcpServer() {
-            Stop();
-        }
-
-        void Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
-        {
-            Stop();
-            auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Impl->Strand, asio::ip::tcp::endpoint(address, port));
-            WeakAcceptor = acceptor;
-            asio::co_spawn(Impl->Strand, Impl->AsyncAccept(Impl, acceptor), asio::detached);
-        }
-
-        void Stop()
-        {
-            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = WeakAcceptor.lock()) {
-                asio::post(Impl->Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
-            }
-        }
-
-        class FImpl : public ITcpContext {
+    class FTcpServer 
+    {
+    protected:
+        struct FImpl : public ITcpContext {
         public:
             FImpl(asio::io_context& ioContext)
                 : ITcpContext(ioContext)
@@ -97,49 +65,78 @@ namespace Cpp {
 
             asio::strand<asio::io_context::executor_type> Strand;
         };
+    public:
+        FTcpServer(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)
+            : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+            , Strand(asio::make_strand(Impl->IoContext))
+        { }     
 
-        static void OnConnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
-            if (auto server = weakServer.lock())
-            {
-                auto serverRawPtr = server.get();
-                asio::post(serverRawPtr->Strand,
-                    [
-                        server = std::move(server), 
-                        connectionId = connectionRawPtr->GetId(), 
-                        connection = connectionRawPtr->shared_from_this()
-                    ]{ 
-                        server->ConnectionMap.insert(std::make_pair(connectionId, std::move(connection)));
-                    });
+        FTcpServer(asio::io_context& ioContext, asio::strand<asio::io_context::executor_type> strand, std::shared_ptr<FImpl> impl = nullptr)
+            : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+            , Strand(strand)
+        { }
+
+        ~FTcpServer() {
+            Stop();
+        }
+
+        void Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
+        {
+            Stop();
+            auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Impl->Strand, asio::ip::tcp::endpoint(address, port));
+            WeakAcceptor = acceptor;
+            asio::co_spawn(Impl->Strand, Impl->AsyncAccept(Impl, acceptor), asio::detached);
+        }
+
+        void Stop()
+        {
+            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = WeakAcceptor.lock()) {
+                asio::post(Impl->Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
             }
         }
 
-        static void OnDisconnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
-            if (auto server = weakServer.lock())
-            {
-                auto serverRawPtr = server.get();
-                asio::post(serverRawPtr->Strand,
-                    [
-                        server = std::move(server), 
-                        connectionId = connectionRawPtr->GetId(), 
-                        connection = connectionRawPtr->shared_from_this()
-                    ]{
-                        auto it = server->ConnectionMap.find(connectionId);
-                        if (it != server->ConnectionMap.end() && it->second == connection)
-                        {
-                            server->ConnectionMap.erase(it);
-                        }
-                    });
-            }
-        }
+        //static void OnConnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
+        //    if (auto server = weakServer.lock())
+        //    {
+        //        auto serverRawPtr = server.get();
+        //        asio::post(serverRawPtr->Strand,
+        //            [
+        //                server = std::move(server), 
+        //                connectionId = connectionRawPtr->GetId(), 
+        //                connection = connectionRawPtr->shared_from_this()
+        //            ]{ 
+        //                server->ConnectionMap.insert(std::make_pair(connectionId, std::move(connection)));
+        //        });
+        //    }
+        //}
+
+        //static void OnDisconnected(std::weak_ptr<FTcpServer> weakServer, FTcpConnection* connectionRawPtr) {
+        //    if (auto server = weakServer.lock())
+        //    {
+        //        auto serverRawPtr = server.get();
+        //        asio::post(serverRawPtr->Strand,
+        //            [
+        //                server = std::move(server), 
+        //                connectionId = connectionRawPtr->GetId(), 
+        //                connection = connectionRawPtr->shared_from_this()
+        //            ]{
+        //                auto it = server->ConnectionMap.find(connectionId);
+        //                if (it != server->ConnectionMap.end() && it->second == connection)
+        //                {
+        //                    server->ConnectionMap.erase(it);
+        //                }
+        //            });
+        //    }
+        //}
 
         ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
         std::shared_ptr<FImpl> Impl;
         std::weak_ptr<asio::ip::tcp::acceptor> WeakAcceptor;
-
         asio::strand<asio::io_context::executor_type> Strand;
         std::map<FConnectionId, std::shared_ptr<FTcpConnection>> ConnectionMap;
+
     };
 
 }

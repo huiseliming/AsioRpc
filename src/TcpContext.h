@@ -35,26 +35,6 @@ namespace Cpp {
             : IoContext(ioContext)
         {}
         virtual ~ITcpContext() {}
-        //asio::io_context& RefIoContext() { return IoContext; }
-        //std::vector<uint8_t>& RefHeartbeatData() { return HeartbeatData; }
-        //double GetOperationTimeout() { return OperationTimeout; }
-
-        //BOOST_FORCEINLINE void SetHeartbeatData(std::vector<uint8_t> buffer) { HeartbeatData = std::move(buffer); }
-        //BOOST_FORCEINLINE void SetOperationTimeout(double operationTimeout) {
-        //    OperationTimeout = operationTimeout;
-        //}
-        //BOOST_FORCEINLINE void SetLogFunc(std::function<void(const char*)> logFunc) {
-        //    LogFunc = logFunc;
-        //}
-        //BOOST_FORCEINLINE void SetConnectedFunc(std::function<void(FTcpConnection*)> connectedFunc) {
-        //    ConnectedFunc = connectedFunc;
-        //}
-        //BOOST_FORCEINLINE void SetDisconnectedFunc(std::function<void(FTcpConnection*)> disconnectedFunc) {
-        //    DisconnectedFunc = disconnectedFunc;
-        //}
-        //BOOST_FORCEINLINE void SetRecvDataFunc(std::function<void(FTcpConnection*, const char*, std::size_t)> recvDataFunc) {
-        //    RecvDataFunc = recvDataFunc;
-        //}
 
         BOOST_FORCEINLINE void Log(const char* msg) {
             if (LogFunc) LogFunc(msg);
