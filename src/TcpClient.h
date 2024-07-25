@@ -3,7 +3,7 @@
 
 namespace Cpp {
 
-    class FTcpClient
+    class FTcpClient : public std::enable_shared_from_this<FTcpClient>
     {
     protected:
         struct FImpl : public ITcpContext {
@@ -78,7 +78,31 @@ namespace Cpp {
         ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
-        virtual void InitTcpContext() { }
+        void OnConnected(std::shared_ptr<FTcpConnection> connection) {
+
+        }
+
+        void OnDisconnected(std::shared_ptr<FTcpConnection> connection) {
+            if (connection)
+            {
+
+            }
+        }
+
+        virtual void InitTcpContext() {
+            Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
+                if (auto self = weakSelf.lock())
+                {
+                    asio::post(Impl->IoContext, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnConnected(std::move(connection)); });
+                }
+            };
+            Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
+                if (auto self = weakSelf.lock())
+                {
+                    asio::post(Impl->IoContext, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnDisconnected(std::move(connection)); });
+                }
+            };
+        }
 
     protected:
         std::shared_ptr<FImpl> Impl;

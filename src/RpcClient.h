@@ -6,7 +6,7 @@
 namespace Cpp 
 {
 
-    class FRpcClient : public FTcpClient, public std::enable_shared_from_this<FRpcClient>
+    class FRpcClient : public FTcpClient
     {
     protected:
         struct FImpl : public FTcpClient::FImpl {
@@ -46,16 +46,16 @@ namespace Cpp
         }
 
         virtual void InitTcpContext() override {
-            Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* connection) {
+            Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Strand, std::bind(&FRpcClient::OnConnected, std::move(self), connection->shared_from_this()));
+                    asio::post(Strand, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnConnected(std::move(connection)); });
                 }
             };
-            Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* connection) {
+            Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Strand, std::bind(&FRpcClient::OnDisconnected, std::move(self), connection->shared_from_this()));
+                    asio::post(Strand, [this, self = std::move(self), connection = rawConnection->shared_from_this()] { OnDisconnected(std::move(connection)); });
                 }
             };
             Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {

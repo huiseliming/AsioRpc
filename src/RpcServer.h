@@ -5,7 +5,7 @@
 
 namespace Cpp
 {
-    class FRpcServer : public FTcpServer, public std::enable_shared_from_this<FRpcServer>
+    class FRpcServer : public FTcpServer
     {
     protected:
         struct FImpl : public FTcpServer::FImpl 
@@ -37,11 +37,11 @@ namespace Cpp
 
         template<typename Func, typename ... Args>
         void Call(std::shared_ptr<FTcpConnection> connection, std::string name, Func&& func, Args&& ... args) {
-            asio::co_spawn(Strand, RpcDispatcher->AsyncCall(RpcDispatcher, std::move(connection), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+            asio::co_spawn(RpcDispatcher->Strand, RpcDispatcher->AsyncCall(RpcDispatcher, std::move(connection), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
 
         template<typename ... Args>
-        asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcServer> self, asio::ip::address_v4 address, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
+        asio::awaitable<void> AsyncCall(std::shared_ptr<FTcpServer> self, asio::ip::address_v4 address, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
             BOOST_ASSERT(Strand.running_in_this_thread());
             auto keyComp = ConnectionMap.key_comp();
             FConnectionId begin = std::pair(address.to_uint(), asio::ip::port_type(0));
@@ -74,13 +74,13 @@ namespace Cpp
             Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* connection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Strand, std::bind(&FRpcServer::OnConnected, std::move(self), connection->shared_from_this()));
+                    asio::post(Strand, [this, self = std::move(self), connection = connection->shared_from_this()] { OnConnected(std::move(connection)); });
                 }
             };
             Impl->DisconnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* connection) {
                 if (auto self = weakSelf.lock())
                 {
-                    asio::post(Strand, std::bind(&FRpcServer::OnDisconnected, std::move(self), connection->shared_from_this()));
+                    asio::post(Strand, [this, self = std::move(self), connection = connection->shared_from_this()] { OnDisconnected(std::move(connection)); });
                 }
             };
             Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
