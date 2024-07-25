@@ -77,8 +77,22 @@ int main(int argc, char* argv[]) {
             printf("\n");
         };
         tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
+        tcpClient->Start(asio::ip::address_v4::loopback(), 7777);
 
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(4));
     }
     work.reset();
     t.join();
