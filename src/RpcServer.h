@@ -5,7 +5,7 @@
 
 namespace Cpp
 {
-    class FRpcServer : public FTcpServer
+    class FRpcServer : public FTcpServer, public std::enable_shared_from_this<FRpcServer>
     {
     protected:
         struct FImpl : public FTcpServer::FImpl 
@@ -30,6 +30,8 @@ namespace Cpp
 
         ~FRpcServer() { }
 
+        FRpcDispatcher& RefRpcDispatcher() { return *RpcDispatcher; }
+
         template<typename Func, typename ... Args>
         void Call(asio::ip::address_v4 address, std::string name, Func&& func, Args&& ... args) {
             asio::co_spawn(Strand, AsyncCall(shared_from_this(), std::move(address), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
@@ -41,7 +43,7 @@ namespace Cpp
         }
 
         template<typename ... Args>
-        asio::awaitable<void> AsyncCall(std::shared_ptr<FTcpServer> self, asio::ip::address_v4 address, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
+        asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcServer> self, asio::ip::address_v4 address, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
             BOOST_ASSERT(Strand.running_in_this_thread());
             auto keyComp = ConnectionMap.key_comp();
             FConnectionId begin = std::pair(address.to_uint(), asio::ip::port_type(0));
@@ -55,6 +57,7 @@ namespace Cpp
             }
         }
 
+    protected:
         void OnConnected(std::shared_ptr<FTcpConnection> connection) {
             BOOST_ASSERT(Strand.running_in_this_thread());
             auto connectionId = connection->GetId();
@@ -87,8 +90,6 @@ namespace Cpp
                 rpcDispatcher->RecvRpc(connection, data, size);
             };
         }
-
-        FRpcDispatcher& RefRpcDispatcher() { return *RpcDispatcher; }
 
     protected:
         std::shared_ptr<FRpcDispatcher> RpcDispatcher;

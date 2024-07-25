@@ -65,20 +65,6 @@ namespace Cpp{
             })).second;
         }
 
-        void RecvRpc(FTcpConnection* connection, const char* data, std::size_t size) {
-            json::value rpcDataValue = json::parse(std::string_view(data, size));
-            auto rpcData = std::move(rpcDataValue.as_array());
-            BOOST_ASSERT(rpcData.size() == 3);
-            if (rpcData[1].is_null())
-            {
-                asio::co_spawn(connection->RefStrand(), AsyncRecvRpcResponse(connection->shared_from_this(), std::move(rpcData)), asio::detached);
-            }
-            else
-            {
-                asio::co_spawn(connection->RefStrand(), AsyncRecvRpcRequest(connection->shared_from_this(), std::move(rpcData)), asio::detached);
-            }
-        }
-
         template<typename Func, typename ... Args>
         asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcDispatcher> self, std::shared_ptr<FTcpConnection> connection, const std::string& name, Func func, const std::tuple<Args...>& args) {
             int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
@@ -133,11 +119,28 @@ namespace Cpp{
             }
         }
 
+        void RecvRpc(FTcpConnection* connection, const char* data, std::size_t size) {
+            json::value rpcDataValue = json::parse(std::string_view(data, size));
+            auto rpcData = std::move(rpcDataValue.as_array());
+            BOOST_ASSERT(rpcData.size() == 3);
+            if (rpcData[1].is_null())
+            {
+                asio::co_spawn(connection->RefStrand(), AsyncRecvRpcResponse(connection->shared_from_this(), std::move(rpcData)), asio::detached);
+            }
+            else
+            {
+                asio::co_spawn(connection->RefStrand(), AsyncRecvRpcRequest(connection->shared_from_this(), std::move(rpcData)), asio::detached);
+            }
+        }
+
+    protected:
         std::shared_ptr<ITcpContext> TcpContext;
         asio::strand<asio::io_context::executor_type> Strand;
         std::unordered_map<std::string, std::function<asio::awaitable<json::value>(json::value)>> RequestMap;
         std::unordered_map<int64_t, std::function<asio::awaitable<void>(json::value)>> ResponseMap;
         std::atomic<int64_t> IndexGenerator;
 
+        friend class FRpcClient;
+        friend class FRpcServer;
     };
 }

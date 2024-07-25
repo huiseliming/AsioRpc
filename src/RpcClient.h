@@ -6,7 +6,7 @@
 namespace Cpp 
 {
 
-    class FRpcClient : public FTcpClient
+    class FRpcClient : public FTcpClient, public std::enable_shared_from_this<FRpcClient>
     {
     protected:
         struct FImpl : public FTcpClient::FImpl {

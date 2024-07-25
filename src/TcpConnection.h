@@ -131,8 +131,8 @@ namespace Cpp {
         std::queue<std::vector<uint8_t>> WriteQueue;
         std::function<void()> PreDtorFunc;
 
-        friend class FTcpServer;
         friend class FTcpClient;
+        friend class FTcpServer;
     };
 
 }

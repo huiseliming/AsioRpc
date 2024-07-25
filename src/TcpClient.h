@@ -3,7 +3,7 @@
 
 namespace Cpp {
 
-    class FTcpClient : public std::enable_shared_from_this<FTcpClient>
+    class FTcpClient
     {
     protected:
         struct FImpl : public ITcpContext {
