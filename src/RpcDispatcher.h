@@ -111,7 +111,7 @@ namespace Cpp{
         }
 
     protected:
-        void SendRpcData(std::shared_ptr<FTcpConnection> connection, json::value rpcData) {
+        BOOST_FORCEINLINE void SendRpcData(std::shared_ptr<FTcpConnection> connection, json::value rpcData) {
             std::string respValueString = json::serialize(rpcData);
             uint32_t bufferSize = respValueString.size();
             std::vector<uint8_t> buffer;
@@ -156,7 +156,7 @@ namespace Cpp{
             }
         }
 
-        void RecvRpc(FTcpConnection* connection, const char* data, std::size_t size) {
+        BOOST_FORCEINLINE void RecvRpc(FTcpConnection* connection, const char* data, std::size_t size) {
             json::value rpcDataValue = json::parse(std::string_view(data, size));
             auto rpcData = std::move(rpcDataValue.as_array());
             BOOST_ASSERT(rpcData.size() == 3);
