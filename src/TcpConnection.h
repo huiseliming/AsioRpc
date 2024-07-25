@@ -22,10 +22,10 @@ namespace Cpp {
         {}
 
         virtual ~FTcpConnection() {
-            if (CleanupFunc)
+            if (PreDtorFunc)
             {
-                CleanupFunc();
-                CleanupFunc = nullptr;
+                PreDtorFunc();
+                PreDtorFunc = nullptr;
             }
         }
 
@@ -124,18 +124,12 @@ namespace Cpp {
         }
 
     protected:
-        template<typename Func>
-        void SetCleanupFunc(Func&& func) {
-            CleanupFunc = std::forward<Func>(func);
-        }
-
-    protected:
         std::shared_ptr<ITcpContext> TcpContext;
         asio::strand<asio::io_context::executor_type> Strand;
         asio::ip::tcp::socket Socket;
         asio::ip::tcp::endpoint Endpoint;
         std::queue<std::vector<uint8_t>> WriteQueue;
-        std::function<void()> CleanupFunc;
+        std::function<void()> PreDtorFunc;
 
         friend class FTcpServer;
         friend class FTcpClient;

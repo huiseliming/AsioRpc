@@ -21,7 +21,7 @@ namespace Cpp {
 
             asio::awaitable<void> AsyncConnect(std::shared_ptr<FImpl> self, std::shared_ptr<FTcpConnection> connection)
             {
-                connection->CleanupFunc = [this, self, address = connection->RefEndpoint().address(), port = connection->RefEndpoint().port()] {
+                connection->PreDtorFunc = [this, self, address = connection->RefEndpoint().address(), port = connection->RefEndpoint().port()] {
                     std::shared_ptr<FTcpConnection> connection = NewConnection(address, port);
                     asio::co_spawn(Strand, AsyncConnect(std::move(self), std::move(connection)), asio::detached);
                 };
@@ -75,7 +75,7 @@ namespace Cpp {
                 BOOST_ASSERT(impl->Strand.running_in_this_thread());
                 if (std::shared_ptr<FTcpConnection> connection = impl->WeakConnection.lock()) {
                     auto rawConnection = connection.get();
-                    rawConnection->CleanupFunc = nullptr;
+                    rawConnection->PreDtorFunc = nullptr;
                     rawConnection->Close(std::move(connection));
                 }
             });

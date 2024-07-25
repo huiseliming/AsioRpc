@@ -37,7 +37,7 @@ namespace Cpp {
                         auto insertResult = ConnectionMap.insert(std::make_pair(connectionRawPtr, connection));
                         if (insertResult.second)
                         {
-                            connection->SetCleanupFunc([=, &ConnectionMap] { asio::post(Strand, [=, &ConnectionMap] { ConnectionMap.erase(connectionRawPtr); }); });
+                            connection->PreDtorFunc = [=, &ConnectionMap] { asio::post(Strand, [=, &ConnectionMap] { ConnectionMap.erase(connectionRawPtr); }); };
                             connection->Read();
                         }
                     }
@@ -64,6 +64,7 @@ namespace Cpp {
             }
 
             asio::strand<asio::io_context::executor_type> Strand;
+            std::weak_ptr<asio::ip::tcp::acceptor> WeakAcceptor;
         };
 
     public:
@@ -90,13 +91,13 @@ namespace Cpp {
                 TcpContextInitializer = nullptr;
             }
             auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Impl->Strand, asio::ip::tcp::endpoint(address, port));
-            WeakAcceptor = acceptor;
+            Impl->WeakAcceptor = acceptor;
             asio::co_spawn(Impl->Strand, Impl->AsyncAccept(Impl, acceptor), asio::detached);
         }
 
         void Stop()
         {
-            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = WeakAcceptor.lock()) {
+            if (std::shared_ptr<asio::ip::tcp::acceptor> acceptor = Impl->WeakAcceptor.lock()) {
                 asio::post(Impl->Strand, [acceptor = std::move(acceptor)] { acceptor->close(); });
             }
         }
@@ -108,7 +109,6 @@ namespace Cpp {
 
     protected:
         std::shared_ptr<FImpl> Impl;
-        std::weak_ptr<asio::ip::tcp::acceptor> WeakAcceptor;
         std::function<void()> TcpContextInitializer;
     };
 
