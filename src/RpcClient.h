@@ -25,14 +25,27 @@ namespace Cpp
             , Strand(asio::make_strand(ioContext))
         {
             Impl->InitFunc = [this] {
+                Impl->ConnectedFunc = [rpcDispatcher = RpcDispatcher, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
+                    {
+                        std::lock_guard<std::mutex> lock(rpcDispatcher->Mutex);
+                        rpcDispatcher->Connection = rawConnection->shared_from_this();
+                    }
+                    rpcDispatcher->OnAttached(rawConnection);
+                };
+                Impl->DisconnectedFunc = [rpcDispatcher = RpcDispatcher, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
+                    rpcDispatcher->OnDetached(rawConnection);
+                    {
+                        std::lock_guard<std::mutex> lock(rpcDispatcher->Mutex);
+                        rpcDispatcher->Connection.reset();
+                    }
+                };
                 Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
                     rpcDispatcher->RecvRpc(connection, data, size);
                 };
             };
         }
 
-        ~FRpcClient() {
-        }
+        ~FRpcClient() { }
 
         std::shared_ptr<FRpcDispatcher>& RefRpcDispatcher() { return RpcDispatcher; }
 

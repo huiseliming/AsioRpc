@@ -3,11 +3,10 @@
 
 namespace Cpp {
 
-    using FConnectionId = std::pair<asio::ip::address_v4::uint_type, asio::ip::port_type>;
-
     class FTcpConnection : public std::enable_shared_from_this<FTcpConnection>
     {
     public:
+        using IdType = std::pair<std::string, uint16_t>;
         FTcpConnection(std::shared_ptr<ITcpContext> tcpContext)
             : TcpContext(std::move(tcpContext))
             , Strand(asio::make_strand(TcpContext->IoContext))
@@ -29,7 +28,7 @@ namespace Cpp {
             }
         }
 
-        FConnectionId GetId() { return std::make_pair(Endpoint.address().to_v4().to_uint(), Endpoint.port()); }
+        std::pair<std::string, uint16_t> GetId() { return std::make_pair(Endpoint.address().to_string(), Endpoint.port()); }
 
         void Read() { asio::co_spawn(Strand, AsyncRead(shared_from_this()), asio::detached); }
         void Write(std::vector<uint8_t> data) { asio::co_spawn(Strand, AsyncWrite(shared_from_this(), std::move(data)), asio::detached); }

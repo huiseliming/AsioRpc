@@ -41,8 +41,13 @@ namespace Cpp{
             , Strand(asio::make_strand(TcpContext->IoContext))
         {}
 
+        void OnAttached(FTcpConnection* rawConnection) { if (AttachedFunc) AttachedFunc(rawConnection); }
+        void OnDetached(FTcpConnection* rawConnection) { if (DetachedFunc) DetachedFunc(rawConnection); }
+        void SetAttachedFunc(std::function<void(FTcpConnection*)> func) { AttachedFunc = func; }
+        void SetDetachedFunc(std::function<void(FTcpConnection*)> func) { DetachedFunc = func; }
+
         template<typename Func>
-        bool AddFunc(std::string name, Func&& func) {
+        BOOST_FORCEINLINE bool AddFunc(std::string name, Func&& func) {
             using FuncReturnType = boost::callable_traits::return_type_t<Func>;
             using FuncArgs = boost::callable_traits::args_t<Func>;
             return RequestMap.insert(std::make_pair(name, [func = std::forward<Func>(func)](json::value args) -> asio::awaitable<json::value> {
@@ -66,8 +71,35 @@ namespace Cpp{
         }
 
         template<typename Func, typename ... Args>
-        void Call(std::shared_ptr<FTcpConnection> connection, std::string name, Func&& func, Args&& ... args) {
-            asio::co_spawn(Strand, AsyncCall(shared_from_this(), std::move(connection), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+        BOOST_FORCEINLINE void Call(std::string address, std::string name, Func&& func, Args&& ... args) {
+            std::lock_guard<std::mutex> lock(Mutex);
+            auto keyComp = ConnectionMap.key_comp();
+            FTcpConnection::IdType begin = std::pair(address, uint16_t(0));
+            FTcpConnection::IdType end = std::pair(address, uint16_t(-1));
+            for (auto it = ConnectionMap.lower_bound(begin); it != ConnectionMap.end() && !keyComp(end, it->first); it++)
+            {
+                if (it->second)
+                {
+                    asio::co_spawn(Strand, AsyncCall(shared_from_this(), it->second, std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+                }
+            }
+        }
+
+        template<typename Func, typename ... Args>
+        BOOST_FORCEINLINE void Call(FTcpConnection::IdType id, std::string name, Func&& func, Args&& ... args) {
+            std::lock_guard<std::mutex> lock(Mutex);
+            auto it = ConnectionMap.find(id);
+            if (it != ConnectionMap.end())
+            {
+                asio::co_spawn(Strand, AsyncCall(shared_from_this(), it->second, std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
+            }
+        }
+
+        template<typename Func, typename ... Args>
+        BOOST_FORCEINLINE void Call(std::shared_ptr<FTcpConnection> connection, std::string name, Func&& func, Args&& ... args) {
+            BOOST_ASSERT(Connection);
+            std::lock_guard<std::mutex> lock(Mutex);
+            asio::co_spawn(Strand, AsyncCall(shared_from_this(), connection ? std::move(connection) : Connection, std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
         }
 
         template<typename Func, typename ... Args>
@@ -144,6 +176,12 @@ namespace Cpp{
         std::unordered_map<std::string, std::function<asio::awaitable<json::value>(json::value)>> RequestMap;
         std::unordered_map<int64_t, std::function<asio::awaitable<void>(json::value)>> ResponseMap;
         std::atomic<int64_t> IndexGenerator;
+
+        std::mutex Mutex;
+        std::shared_ptr<FTcpConnection> Connection;
+        std::map<FTcpConnection::IdType, std::shared_ptr<FTcpConnection>> ConnectionMap;
+        std::function<void(FTcpConnection*)> AttachedFunc;
+        std::function<void(FTcpConnection*)> DetachedFunc;
 
         friend class FRpcClient;
         friend class FRpcServer;

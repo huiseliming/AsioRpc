@@ -28,6 +28,24 @@ namespace Cpp
             , Strand(asio::make_strand(ioContext))
         {
             Impl->InitFunc = [this] {
+                Impl->ConnectedFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* rawConnection) {
+                    {
+                        std::lock_guard<std::mutex> lock(rpcDispatcher->Mutex);
+                        rpcDispatcher->ConnectionMap.insert(std::make_pair(rawConnection->GetId(), rawConnection->shared_from_this()));
+                    }
+                    rpcDispatcher->OnAttached(rawConnection);
+                };
+                Impl->DisconnectedFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* rawConnection) {
+                    rpcDispatcher->OnDetached(rawConnection);
+                    {
+                        std::lock_guard<std::mutex> lock(rpcDispatcher->Mutex);
+                        auto it = rpcDispatcher->ConnectionMap.find(rawConnection->GetId());
+                        if (it != rpcDispatcher->ConnectionMap.end() && it->second.get() == rawConnection)
+                        {
+                            rpcDispatcher->ConnectionMap.erase(it);
+                        }
+                    }
+                };
                 Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
                     rpcDispatcher->RecvRpc(connection, data, size);
                 };
@@ -37,31 +55,6 @@ namespace Cpp
         ~FRpcServer() { }
 
         std::shared_ptr<FRpcDispatcher>& RefRpcDispatcher() { return RpcDispatcher; }
-
-        //template<typename Func, typename ... Args>
-        //void Call(asio::ip::address_v4 address, std::string name, Func&& func, Args&& ... args) {
-        //    asio::co_spawn(Strand, AsyncCall(shared_from_this(), std::move(address), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
-        //}
-
-        template<typename Func, typename ... Args>
-        void Call(std::shared_ptr<FTcpConnection> connection, std::string name, Func&& func, Args&& ... args) {
-            asio::co_spawn(RpcDispatcher->Strand, RpcDispatcher->AsyncCall(RpcDispatcher, std::move(connection), std::move(name), FRpcDispatcher::ToRequestFunc(std::forward<Func>(func)), std::make_tuple(std::forward<Args>(args)...)), asio::detached);
-        }
-
-        //template<typename ... Args>
-        //asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcServer> self, asio::ip::address_v4 address, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
-        //    BOOST_ASSERT(Strand.running_in_this_thread());
-        //    auto keyComp = ConnectionMap.key_comp();
-        //    FConnectionId begin = std::pair(address.to_uint(), asio::ip::port_type(0));
-        //    FConnectionId end = std::pair(address.to_uint(), asio::ip::port_type(-1));
-        //    for (auto it = ConnectionMap.lower_bound(begin); it != ConnectionMap.end() && !keyComp(end, it->first); it++)
-        //    {
-        //        if (it->second)
-        //        {
-        //            co_await RpcDispatcher->AsyncCall(RpcDispatcher, it->second, name, std::move(func), args);
-        //        }
-        //    }
-        //}
 
     protected:
 
