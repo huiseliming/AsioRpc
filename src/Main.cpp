@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         rpcServer->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
         //rpcServer->GetTcpContext()->ConnectedFunc = std::bind(&FTcpServer::OnConnected, std::weak_ptr(rpcServer), std::placeholders::_1);
         //rpcServer->GetTcpContext()->DisconnectedFunc = std::bind(&FTcpServer::OnDisconnected, std::weak_ptr(rpcServer), std::placeholders::_1);
-        rpcServer->RpcDispatcher->AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<int> {
+        rpcServer->RefRpcDispatcher().AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<int> {
             std::cout << "server exec > " << cmd << std::endl;
             rpcServer->Call(asio::ip::make_address_v4("127.0.0.1"), "exec", [] {
                 std::cout << "client exec < " << std::endl;
@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 
         std::shared_ptr<FRpcClient> rpcClient = std::make_shared<FRpcClient>(ioc);
         rpcClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        rpcClient->RpcDispatcher->AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<void> {
+        rpcClient->RefRpcDispatcher().AddFunc("exec", [rpcServer = rpcServer.get()](std::string cmd) -> asio::awaitable<void> {
             std::cout << "client exec > " << cmd << std::endl;
             co_return;
         });

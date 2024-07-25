@@ -87,6 +87,9 @@ namespace Cpp
             DetachedFunc = func;
         }
 
+        FRpcDispatcher& RefRpcDispatcher() { return *RpcDispatcher; }
+
+    protected:
         std::shared_ptr<FRpcDispatcher> RpcDispatcher;
         asio::strand<asio::io_context::executor_type> Strand;
         std::shared_ptr<FTcpConnection> Connection;
