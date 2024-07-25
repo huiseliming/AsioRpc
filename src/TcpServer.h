@@ -68,10 +68,12 @@ namespace Cpp {
     public:
         FTcpServer(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)
             : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+            , TcpContextInitializer([this] { this->InitTcpContext(); })
         { }     
 
         FTcpServer(asio::io_context& ioContext, asio::strand<asio::io_context::executor_type> strand, std::shared_ptr<FImpl> impl = nullptr)
             : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+            , TcpContextInitializer([this] { this->InitTcpContext(); })
         { }
 
         ~FTcpServer() {
@@ -81,10 +83,10 @@ namespace Cpp {
         void Start(asio::ip::address address = asio::ip::address_v4::any(), asio::ip::port_type port = 7772)
         {
             Stop();
-            if (InitTcpContextFunc)
+            if (TcpContextInitializer)
             {
-                InitTcpContextFunc();
-                InitTcpContextFunc = nullptr;
+                TcpContextInitializer();
+                TcpContextInitializer = nullptr;
             }
             auto acceptor = std::make_shared<asio::ip::tcp::acceptor>(Impl->Strand, asio::ip::tcp::endpoint(address, port));
             WeakAcceptor = acceptor;
@@ -101,9 +103,12 @@ namespace Cpp {
         ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
+        virtual void InitTcpContext() { }
+
+    protected:
         std::shared_ptr<FImpl> Impl;
         std::weak_ptr<asio::ip::tcp::acceptor> WeakAcceptor;
-        std::function<void()> InitTcpContextFunc;
+        std::function<void()> TcpContextInitializer;
     };
 
 }

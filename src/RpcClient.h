@@ -24,7 +24,7 @@ namespace Cpp
             , RpcDispatcher(std::make_shared<FRpcDispatcher>(Impl))
             , Strand(asio::make_strand(ioContext))
         {
-            InitTcpContextFunc = std::bind(&FRpcClient::InitTcpContext, this);
+
         }
 
         ~FRpcClient() {
@@ -45,7 +45,7 @@ namespace Cpp
             OnDetached();
         }
 
-        void InitTcpContext() {
+        virtual void InitTcpContext() override {
             Impl->ConnectedFunc = [this, weakSelf = weak_from_this()](FTcpConnection* connection) {
                 if (auto self = weakSelf.lock())
                 {

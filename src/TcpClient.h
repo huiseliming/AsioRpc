@@ -48,6 +48,7 @@ namespace Cpp {
     public:
         FTcpClient(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)
             : Impl(impl ? std::move(impl) : std::make_shared<FImpl>(ioContext))
+            , TcpContextInitializer([this] { this->InitTcpContext(); })
         {}
 
         ~FTcpClient() {
@@ -57,10 +58,10 @@ namespace Cpp {
         void Start(asio::ip::address address = asio::ip::address_v4::loopback(), asio::ip::port_type port = 7772)
         {
             Stop();
-            if (InitTcpContextFunc)
+            if (TcpContextInitializer)
             {
-                InitTcpContextFunc();
-                InitTcpContextFunc = nullptr;
+                TcpContextInitializer();
+                TcpContextInitializer = nullptr;
             }
             std::shared_ptr<FTcpConnection> connection = Impl->NewConnection(address, port);
             asio::co_spawn(Impl->Strand, Impl->AsyncConnect(Impl, std::move(connection)), asio::detached);
@@ -77,9 +78,12 @@ namespace Cpp {
         ITcpContext* GetTcpContext() { return Impl.get(); };
 
     protected:
+        virtual void InitTcpContext() { }
+
+    protected:
         std::shared_ptr<FImpl> Impl;
         std::weak_ptr<FTcpConnection> WeakConnection;
-        std::function<void()> InitTcpContextFunc;
+        std::function<void()> TcpContextInitializer;
     };
 
 }
