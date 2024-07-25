@@ -79,14 +79,6 @@ namespace Cpp{
             }
         }
 
-        asio::awaitable<int64_t> AsyncInsertResponse(std::function<asio::awaitable<void>(json::value)> func)
-        {
-            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-            ResponseMap.insert(std::pair(id, std::move(func)));
-            co_return id;
-        }
-
         template<typename Func, typename ... Args>
         asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcDispatcher> self, std::shared_ptr<FTcpConnection> connection, const std::string& name, Func func, const std::tuple<Args...>& args) {
             int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
@@ -94,47 +86,6 @@ namespace Cpp{
             ResponseMap.insert(std::pair(id, std::move(func)));
             SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
         }
-
-        //template<typename Func, typename ... Args>
-        //BOOST_INLINE_CONSTEXPR void SendRpcRequest(FTcpConnection* connection, std::string name, Func&& func, Args&& ... args) {
-        //    using FuncReturnType = boost::callable_traits::return_type_t<Func>;
-        //    using FuncArgsType = boost::callable_traits::args_t<Func>;
-        //    asio::co_spawn(Strand, AsyncSendRpcRequest(connection->shared_from_this(), std::move(name), [func = std::forward<Func>(func)](json::value val) -> asio::awaitable<void> {
-        //        if constexpr (std::tuple_size_v<FuncArgsType>)
-        //        {
-        //            if constexpr (IsAsioAwaitable<FuncReturnType>::value)
-        //                co_await func(json::value_to<std::decay_t<std::tuple_element_t<0, FuncArgsType>>>(val));
-        //            else
-        //                func(json::value_to<std::decay_t<std::tuple_element_t<0, FuncArgsType>>>(val));
-        //        }
-        //        else
-        //        {
-        //            if constexpr (IsAsioAwaitable<FuncReturnType>::value)
-        //                co_await func();
-        //            else
-        //                func();
-        //        }
-        //        co_return;
-        //    }, std::make_tuple(std::forward<Args>(args)...)), asio::detached);
-        //}
-
-        //template<typename ... Args>
-        //asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, const std::string& name, const std::function<asio::awaitable<void>(json::value)>& func, const std::tuple<Args...>& args) {
-        //    co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-        //    int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-        //    ResponseMap.insert(std::pair(id, func));
-        //    SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
-        //    co_return;
-        //}
-
-        //template<typename ... Args>
-        //asio::awaitable<void> AsyncSendRpcRequest(std::shared_ptr<FTcpConnection> connection, std::string name, std::function<asio::awaitable<void>(json::value)> func, std::tuple<Args...> args) {
-        //    BOOST_ASSERT(Strand.running_in_this_thread());
-        //    int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-        //    ResponseMap.insert(std::pair(id, func));
-        //    SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
-        //    co_return;
-        //}
 
     protected:
         void SendRpcData(std::shared_ptr<FTcpConnection> connection, json::value rpcData) {
