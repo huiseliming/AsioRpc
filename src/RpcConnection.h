@@ -47,13 +47,13 @@ namespace Cpp {
 
                     if (bufferSize == 0) continue;
 
-                    std::vector<char> buffer;
+                    std::vector<uint8_t> buffer;
                     buffer.resize(EndianCast(bufferSize));
                     timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     bytesTransferred = co_await asio::async_read(Socket, asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();
-                    TcpContext->OnRecvData(connection.get(), buffer.data(), buffer.size());
+                    TcpContext->OnRecvData(connection.get(), std::move(buffer));
                 }
             }
             catch (const std::exception& e)

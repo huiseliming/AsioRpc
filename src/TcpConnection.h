@@ -73,7 +73,7 @@ namespace Cpp {
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();
                     BOOST_ASSERT(Strand.running_in_this_thread());
-                    TcpContext->OnRecvData(connection.get(), buffer, bytesTransferred);
+                    TcpContext->OnRecvData(connection.get(), std::vector<uint8_t>(buffer, buffer + bytesTransferred));
                 }
             }
             catch (const std::exception& e)

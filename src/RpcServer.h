@@ -46,8 +46,8 @@ namespace Cpp
                         }
                     }
                 };
-                Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, const char* data, std::size_t size) {
-                    rpcDispatcher->RecvRpc(connection, data, size);
+                Impl->RecvDataFunc = [rpcDispatcher = RpcDispatcher](FTcpConnection* connection, std::vector<uint8_t> buffer) {
+                    rpcDispatcher->RecvRpc(connection, (const char*)buffer.data(), buffer.size());
                 };
             };
         }

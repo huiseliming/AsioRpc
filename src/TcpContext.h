@@ -52,8 +52,8 @@ namespace Cpp {
         BOOST_FORCEINLINE void OnDisconnected(FTcpConnection* connection) {
             if (DisconnectedFunc) DisconnectedFunc(connection);
         }
-        BOOST_FORCEINLINE void OnRecvData(FTcpConnection* connection, const char* data, std::size_t size) {
-            if (RecvDataFunc) RecvDataFunc(connection, data, size);
+        BOOST_FORCEINLINE void OnRecvData(FTcpConnection* connection, std::vector<uint8_t> buffer) {
+            if (RecvDataFunc) RecvDataFunc(connection, std::move(buffer));
         }
 
     //protected:
@@ -64,7 +64,7 @@ namespace Cpp {
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;
-        std::function<void(FTcpConnection*, const char*, std::size_t)> RecvDataFunc;
+        std::function<void(FTcpConnection*, std::vector<uint8_t>)> RecvDataFunc;
         
     };
 

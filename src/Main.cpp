@@ -45,11 +45,11 @@ int main(int argc, char* argv[]) {
         //tcpServer->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
         //tcpServer->GetTcpContext()->ConnectedFunc = std::bind(&FTcpServer::OnConnected, std::weak_ptr(tcpServer), std::placeholders::_1);
         //tcpServer->GetTcpContext()->DisconnectedFunc = std::bind(&FTcpServer::OnDisconnected, std::weak_ptr(tcpServer), std::placeholders::_1);
-        tcpServer->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, const char* data, std::size_t size) {
+        tcpServer->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, std::vector<uint8_t> buffer) {
             printf("client: ");
-            for (size_t i = 0; i < size; i++)
+            for (size_t i = 0; i < buffer.size(); i++)
             {
-                printf("%c", data[i]);
+                printf("%c", buffer[i]);
             }
             printf("\n");
         };
@@ -60,11 +60,11 @@ int main(int argc, char* argv[]) {
         //tcpClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
         tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) { std::cout << "ConnectedFunc" << std::endl; };
         tcpClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) { std::cout << "DisconnectedFunc" << std::endl; };
-        tcpClient->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, const char* data, std::size_t size) {
+        tcpClient->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, std::vector<uint8_t> buffer) {
             printf("server: ");
-            for (size_t i = 0; i < size; i++)
+            for (size_t i = 0; i < buffer.size(); i++)
             {
-                printf("%c", data[i]);
+                printf("%c", buffer[i]);
             }
             printf("\n");
         };
