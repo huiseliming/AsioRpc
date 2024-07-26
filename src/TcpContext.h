@@ -58,14 +58,13 @@ namespace Cpp {
 
     //protected:
         asio::io_context& IoContext;
-        double OperationTimeout = 3.f;
+        double OperationTimeout = 3333.f;
         std::vector<uint8_t> HeartbeatData;
         std::function<void()> InitFunc;
         std::function<void(const char*)> LogFunc;
         std::function<void(FTcpConnection*)> ConnectedFunc;
         std::function<void(FTcpConnection*)> DisconnectedFunc;
         std::function<void(FTcpConnection*, std::vector<uint8_t>)> RecvDataFunc;
-        
     };
 
 

@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON" FORCE)
 
 add_executable(Example src/Main.cpp 
+src/CmdClient.h
+src/CmdConnection.h
 src/RpcClient.h
 src/RpcDispatcher.h
 src/RpcConnection.h
