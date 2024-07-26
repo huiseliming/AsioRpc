@@ -1,7 +1,7 @@
 #pragma once
 #include "TcpConnection.h"
 
-namespace Cpp{
+namespace Cpp {
 
     template<typename T>
     struct IsAsioAwaitable : std::false_type { };
@@ -32,11 +32,11 @@ namespace Cpp{
                         func();
                 }
                 co_return;
-            };
+                };
         }
 
     public:
-        FRpcDispatcher(std::shared_ptr<ITcpContext> tcpContext) 
+        FRpcDispatcher(std::shared_ptr<ITcpContext> tcpContext)
             : TcpContext(std::move(tcpContext))
             , Strand(asio::make_strand(TcpContext->IoContext))
         {}
@@ -67,7 +67,7 @@ namespace Cpp{
                         std::apply(func, json::value_to<FuncArgs>(args));
                 }
                 co_return value;
-            })).second;
+                })).second;
         }
 
         template<typename Func, typename ... Args>
@@ -103,11 +103,18 @@ namespace Cpp{
         }
 
         template<typename Func, typename ... Args>
-        asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcDispatcher> self, std::shared_ptr<FTcpConnection> connection, const std::string& name, Func func, const std::tuple<Args...>& args) {
-            int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
-            co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-            ResponseMap.insert(std::pair(id, std::move(func)));
-            SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
+        asio::awaitable<void> AsyncCall(std::shared_ptr<FRpcDispatcher> self, std::shared_ptr<FTcpConnection> connection, std::string name, Func func, std::tuple<Args...> args) {
+            try
+            {
+                int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
+                co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
+                ResponseMap.insert(std::pair(id, std::move(func)));
+                SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
+            }
+            catch (const std::exception& e)
+            {
+                TcpContext->Log(fmt::format("FRpcDispatcher::AsyncCall[{}:{}] > exception : {}", connection->RefEndpoint().address().to_string(), connection->RefEndpoint().port(), e.what()).c_str());
+            }
         }
 
     protected:
@@ -129,7 +136,7 @@ namespace Cpp{
                 auto it = RequestMap.find(func);
                 if (it != RequestMap.end()) {
                     json::value respValue = co_await it->second(rpcData[2]);
-                    SendRpcData(connection->shared_from_this(), json::array({ id, json::value(), respValue}) );
+                    SendRpcData(connection->shared_from_this(), json::array({ id, json::value(), respValue }));
                 }
             }
             catch (const std::exception& e)

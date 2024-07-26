@@ -33,11 +33,11 @@ namespace Cpp {
                             continue;
                         }
                         co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
-                        auto connectionRawPtr = connection.get();
-                        auto insertResult = ConnectionMap.insert(std::make_pair(connectionRawPtr, connection));
+                        auto rawConnection = connection.get();
+                        auto insertResult = ConnectionMap.insert(std::make_pair(rawConnection, connection));
                         if (insertResult.second)
                         {
-                            connection->PreDtorFunc = [=, &ConnectionMap] { asio::post(Strand, [=, &ConnectionMap] { ConnectionMap.erase(connectionRawPtr); }); };
+                            connection->PreDtorFunc = [=, this, &ConnectionMap] { asio::post(Strand, [=, this, &ConnectionMap] { ConnectionMap.erase(rawConnection); }); };
                             connection->Read();
                         }
                     }
