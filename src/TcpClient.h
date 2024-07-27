@@ -77,6 +77,7 @@ namespace Cpp {
         }
 
         ITcpContext* GetTcpContext() { return Impl.get(); };
+        std::shared_ptr<FImpl> GetImplPtr() { return Impl; };
 
     protected:
         std::shared_ptr<FImpl> Impl;

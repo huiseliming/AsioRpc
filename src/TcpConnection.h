@@ -47,7 +47,7 @@ namespace Cpp {
             while (Socket.is_open())
             {
                 Write(TcpContext->HeartbeatData);
-                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * TcpContext->OperationTimeout) / 2 - 1)));
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(TcpContext->OperationTimeout * 999 / 3) - 1)));
                 system::error_code errorCode;
                 std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                 if (errorCode) break;

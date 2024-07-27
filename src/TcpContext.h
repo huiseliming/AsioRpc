@@ -58,7 +58,7 @@ namespace Cpp {
 
     //protected:
         asio::io_context& IoContext;
-        double OperationTimeout = 3.f;
+        double OperationTimeout = 8.f;
         std::vector<uint8_t> HeartbeatData;
         std::function<void()> InitFunc;
         std::function<void(const char*)> LogFunc;
