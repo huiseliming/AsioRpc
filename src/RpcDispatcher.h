@@ -154,6 +154,7 @@ namespace Cpp {
                 if (it != ResponseMap.end()) {
                     auto respFunc = std::move(it->second);
                     ResponseMap.erase(it);
+                    co_await asio::dispatch(asio::bind_executor(connection->RefStrand(), asio::use_awaitable));
                     co_await respFunc(rpcData[2]);
                 }
             }
