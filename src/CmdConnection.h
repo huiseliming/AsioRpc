@@ -72,7 +72,7 @@ namespace Cpp {
                     auto bytesTransferred = co_await Socket.async_write_some(asio::buffer(WriteQueue.front()), asio::use_awaitable);
                     BOOST_ASSERT(Strand.running_in_this_thread());
                     boost::system::error_code errorCode;
-                    WaitCmdResponseOrTimeoutTimer.expires_from_now(std::chrono::seconds(1));
+                    WaitCmdResponseOrTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(TcpContext->OperationTimeout * 1000 / 5))));
                     std::tie(errorCode) = co_await WaitCmdResponseOrTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                     WriteQueue.pop();
                 }
