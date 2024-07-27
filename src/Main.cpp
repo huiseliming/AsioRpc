@@ -10,10 +10,10 @@ using namespace Cpp;
 std::shared_ptr<FCmdClient> testCmdClient(asio::io_context& ioc) {
 
     std::shared_ptr<FCmdClient> cmdClient = std::make_shared<FCmdClient>(ioc);
-    cmdClient->GetTcpContext()->HeartbeatData = { 'c', 'm', 'd'};
     //cmdClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
     cmdClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) {
         std::cout << "ConnectedFunc" << std::endl;
+        connection->SetHeartbeatData({ 'c', 'm', 'd' });
         for (size_t i = 0; i < 32; i++)
         {
             connection->Write({ '@' });
@@ -64,10 +64,12 @@ int main(int argc, char* argv[]) {
         rpcClient->Start();
 
         std::shared_ptr<FTcpServer> tcpServer = std::make_shared<FTcpServer>(ioc);
-        tcpServer->GetTcpContext()->HeartbeatData = { 't', 'c', 'p', };
         //tcpServer->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        //tcpServer->GetTcpContext()->ConnectedFunc = std::bind(&FTcpServer::OnConnected, std::weak_ptr(tcpServer), std::placeholders::_1);
-        //tcpServer->GetTcpContext()->DisconnectedFunc = std::bind(&FTcpServer::OnDisconnected, std::weak_ptr(tcpServer), std::placeholders::_1);
+        tcpServer->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) {
+            std::cout << "ConnectedFunc" << std::endl;
+            connection->SetHeartbeatData({ 't', 'c', 'p', });
+        };
+        tcpServer->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) { std::cout << "DisconnectedFunc" << std::endl; };
         tcpServer->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, std::vector<uint8_t> buffer) {
             printf("client: ");
             for (size_t i = 0; i < buffer.size(); i++)
@@ -79,9 +81,11 @@ int main(int argc, char* argv[]) {
         tcpServer->Start(asio::ip::address_v4::any(), 7777);
 
         std::shared_ptr<FTcpClient> tcpClient = std::make_shared<FTcpClient>(ioc);
-        tcpClient->GetTcpContext()->HeartbeatData = { 't', 'c', 'p', };
         //tcpClient->GetTcpContext()->LogFunc = [](const char* msg) { std::cout << msg << std::endl; };
-        tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) { std::cout << "ConnectedFunc" << std::endl; };
+        tcpClient->GetTcpContext()->ConnectedFunc = [](FTcpConnection* connection) { 
+            std::cout << "ConnectedFunc" << std::endl;
+            connection->SetHeartbeatData({ 't', 'c', 'p', });
+        };
         tcpClient->GetTcpContext()->DisconnectedFunc = [](FTcpConnection* connection) { std::cout << "DisconnectedFunc" << std::endl; };
         tcpClient->GetTcpContext()->RecvDataFunc = [](FTcpConnection* connection, std::vector<uint8_t> buffer) {
             printf("server: ");

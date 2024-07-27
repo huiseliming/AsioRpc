@@ -31,7 +31,7 @@ namespace Cpp {
                 char buffer[4 * 1024];
                 for (;;)
                 {
-                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();
@@ -69,11 +69,14 @@ namespace Cpp {
                     co_return;
                 while (!WriteQueue.empty())
                 {
-                    auto bytesTransferred = co_await Socket.async_write_some(asio::buffer(WriteQueue.front()), asio::use_awaitable);
-                    BOOST_ASSERT(Strand.running_in_this_thread());
-                    boost::system::error_code errorCode;
-                    WaitCmdResponseOrTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(TcpContext->OperationTimeout * 1000 / 4) - 1)));
-                    std::tie(errorCode) = co_await WaitCmdResponseOrTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
+                    if (!WriteQueue.front().empty())
+                    {
+                        auto bytesTransferred = co_await Socket.async_write_some(asio::buffer(WriteQueue.front()), asio::use_awaitable);
+                        BOOST_ASSERT(Strand.running_in_this_thread());
+                        boost::system::error_code errorCode;
+                        WaitCmdResponseOrTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(OperationTimeout * 1000 / 4) - 1)));
+                        std::tie(errorCode) = co_await WaitCmdResponseOrTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
+                    }
                     WriteQueue.pop();
                 }
             }

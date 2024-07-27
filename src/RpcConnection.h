@@ -19,7 +19,7 @@ namespace Cpp {
             while (Socket.is_open())
             {
                 Write({ 0x00, 0x00, 0x00, 0x00 });
-                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * TcpContext->OperationTimeout) / 2 - 1)));
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * OperationTimeout) / 2 - 1)));
                 system::error_code errorCode;
                 std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                 if (errorCode) break;
@@ -39,7 +39,7 @@ namespace Cpp {
             {
                 for (;;)
                 {
-                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     uint32_t bufferSize;
                     auto bytesTransferred = co_await asio::async_read(Socket, asio::buffer(&bufferSize, sizeof(bufferSize)), asio::use_awaitable);
@@ -49,7 +49,7 @@ namespace Cpp {
 
                     std::vector<uint8_t> buffer;
                     buffer.resize(EndianCast(bufferSize));
-                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     bytesTransferred = co_await asio::async_read(Socket, asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();

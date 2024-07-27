@@ -29,7 +29,7 @@ namespace Cpp {
                 BOOST_ASSERT(Strand.running_in_this_thread());
                 try {
                     asio::steady_timer connectTimeoutTimer(connection->RefStrand());
-                    connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
+                    connectTimeoutTimer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * ConnectTimeout)));
                     connectTimeoutTimer.async_wait([=](boost::system::error_code errorCode) { if (!errorCode) connection->RefSocket().close(); });
                     co_await connection->RefSocket().async_connect(connection->RefEndpoint(), asio::use_awaitable);
                     BOOST_ASSERT(Strand.running_in_this_thread() || connection->RefStrand().running_in_this_thread());
@@ -46,6 +46,7 @@ namespace Cpp {
 
             asio::strand<asio::io_context::executor_type> Strand;
             std::weak_ptr<FTcpConnection> WeakConnection;
+            double ConnectTimeout = 8.f;
         };
     public:
         FTcpClient(asio::io_context& ioContext, std::shared_ptr<FImpl> impl = nullptr)

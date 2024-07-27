@@ -30,6 +30,14 @@ namespace Cpp {
 
         std::pair<std::string, uint16_t> GetId() { return std::make_pair(Endpoint.address().to_string(), Endpoint.port()); }
 
+        asio::ip::tcp::socket& RefSocket() { return Socket; }
+        asio::strand<asio::io_context::executor_type>& RefStrand() { return Strand; }
+        asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }
+        std::queue<std::vector<uint8_t>>& RefWriteQueue() { return WriteQueue; }
+
+        void SetHeartbeatData(std::vector<uint8_t> heartbeatData) { HeartbeatData = heartbeatData; }
+        void SetOperationTimeout(double operationTimeout) { OperationTimeout = operationTimeout; }
+
         void Read() { asio::co_spawn(Strand, AsyncRead(shared_from_this()), asio::detached); }
         void Write(std::vector<uint8_t> data) { asio::co_spawn(Strand, AsyncWrite(shared_from_this(), std::move(data)), asio::detached); }
         void Close() { asio::co_spawn(Strand, AsyncClose(shared_from_this()), asio::detached); }
@@ -38,16 +46,11 @@ namespace Cpp {
         void Write(std::shared_ptr<FTcpConnection> connection, std::vector<uint8_t> data) { asio::co_spawn(Strand, AsyncWrite(std::move(connection), std::move(data)), asio::detached); }
         void Close(std::shared_ptr<FTcpConnection> connection) { asio::co_spawn(Strand, AsyncClose(std::move(connection)), asio::detached); }
 
-        asio::ip::tcp::socket& RefSocket() { return Socket; }
-        asio::strand<asio::io_context::executor_type>& RefStrand() { return Strand; }
-        asio::ip::tcp::endpoint& RefEndpoint() { return Endpoint; }
-        std::queue<std::vector<uint8_t>>& RefWriteQueue() { return WriteQueue; }
-
         asio::awaitable<void> AsyncSendHeartbeat(asio::steady_timer& heartbeatTimeoutTimer) {
             while (Socket.is_open())
             {
-                Write(TcpContext->HeartbeatData);
-                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(TcpContext->OperationTimeout * 999 / 3) - 1)));
+                Write(HeartbeatData);
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(OperationTimeout * 999 / 3) - 1)));
                 system::error_code errorCode;
                 std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                 if (errorCode) break;
@@ -68,7 +71,7 @@ namespace Cpp {
                 char buffer[4 * 1024];
                 for (;;)
                 {
-                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * TcpContext->OperationTimeout)));
+                    timer.expires_from_now(std::chrono::milliseconds(static_cast<int64_t>(1000 * OperationTimeout)));
                     timer.async_wait([this, connection](boost::system::error_code errorCode) { if (!errorCode) Socket.close(); });
                     auto bytesTransferred = co_await Socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
                     timer.cancel();
@@ -104,8 +107,11 @@ namespace Cpp {
                     co_return;
                 while (!WriteQueue.empty())
                 {
-                    auto bytesTransferred = co_await Socket.async_write_some(asio::buffer(WriteQueue.front()), asio::use_awaitable);
-                    BOOST_ASSERT(Strand.running_in_this_thread());
+                    if (!WriteQueue.front().empty())
+                    {
+                        auto bytesTransferred = co_await Socket.async_write_some(asio::buffer(WriteQueue.front()), asio::use_awaitable);
+                        BOOST_ASSERT(Strand.running_in_this_thread());
+                    }
                     WriteQueue.pop();
                 }
             }
@@ -129,6 +135,9 @@ namespace Cpp {
         asio::ip::tcp::endpoint Endpoint;
         std::queue<std::vector<uint8_t>> WriteQueue;
         std::function<void()> PreDtorFunc;
+
+        std::vector<uint8_t> HeartbeatData;
+        double OperationTimeout = 8.f;
 
         friend class FTcpClient;
         friend class FTcpServer;

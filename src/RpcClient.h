@@ -22,7 +22,6 @@ namespace Cpp
         FRpcClient(asio::io_context& ioContext)
             : FTcpClient(ioContext, std::make_shared<FImpl>(ioContext))
             , RpcDispatcher(std::make_shared<FRpcDispatcher>(Impl))
-            , Strand(asio::make_strand(ioContext))
         {
             Impl->InitFunc = [this] {
                 Impl->ConnectedFunc = [rpcDispatcher = RpcDispatcher, weakSelf = weak_from_this()](FTcpConnection* rawConnection) {
@@ -51,7 +50,6 @@ namespace Cpp
 
     protected:
         std::shared_ptr<FRpcDispatcher> RpcDispatcher;
-        asio::strand<asio::io_context::executor_type> Strand;
 
     };
 
