@@ -55,7 +55,7 @@ namespace Cpp {
                 if constexpr (IsAsioAwaitable<FuncReturnType>::value)
                 {
                     if constexpr (!std::is_same_v<FuncReturnType, asio::awaitable<void>>)
-                        value = co_await std::apply(func, json::value_to<FuncArgs>(args));
+                        value = json::value_from(co_await std::apply(func, json::value_to<FuncArgs>(args)));
                     else
                         co_await std::apply(func, json::value_to<FuncArgs>(args));
                 }
@@ -109,7 +109,10 @@ namespace Cpp {
                 int64_t id = IndexGenerator.fetch_add(1, std::memory_order_relaxed);
                 co_await asio::dispatch(asio::bind_executor(Strand, asio::use_awaitable));
                 ResponseMap.insert(std::pair(id, std::move(func)));
-                SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
+                if constexpr (sizeof...(Args) == 0)
+                    SendRpcData(std::move(connection), json::array({ id, name, json::value() }));
+                else
+                    SendRpcData(std::move(connection), json::array({ id, name, json::value_from(args) }));
             }
             catch (const std::exception& e)
             {
