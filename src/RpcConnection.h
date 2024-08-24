@@ -19,7 +19,7 @@ namespace Cpp {
             while (Socket.is_open())
             {
                 Write({ 0x00, 0x00, 0x00, 0x00 });
-                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(1LL, static_cast<int64_t>(1000 * OperationTimeout) / 2 - 1)));
+                heartbeatTimeoutTimer.expires_from_now(std::chrono::milliseconds(std::max(static_cast<int64_t>(1LL), static_cast<int64_t>(1000 * OperationTimeout) / 2 - 1)));
                 system::error_code errorCode;
                 std::tie(errorCode) = co_await heartbeatTimeoutTimer.async_wait(asio::as_tuple(asio::use_awaitable));
                 if (errorCode) break;
@@ -63,7 +63,7 @@ namespace Cpp {
             }
             timer.cancel();
             heartbeatTimeoutTimer.cancel();
-            while (!heartbeatSenderFuture._Is_ready())
+            while (std::future_status::ready != heartbeatSenderFuture.wait_for(std::chrono::milliseconds(0)))
             {
                 timer.expires_after(std::chrono::milliseconds(1));
                 co_await timer.async_wait(asio::use_awaitable);
